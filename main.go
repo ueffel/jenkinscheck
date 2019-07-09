@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gobuffalo/packr/v2"
@@ -284,7 +285,10 @@ func (tableModel *jobModel) updateJobs(ni *walk.NotifyIcon) {
 			}
 		}
 		if !found {
-			items[i] = &job{Name: tableModel.items[i].Name, Label: "nicht gefunden!"}
+			items[i] = &job{
+				Name: tableModel.items[i].Name,
+				Url:  strings.ReplaceAll(strings.ToLower(ccUrl), "/cc.xml", "/job/"+tableModel.items[i].Name),
+			}
 		} else {
 			items[i] = newJob
 			go func() {
@@ -292,7 +296,7 @@ func (tableModel *jobModel) updateJobs(ni *walk.NotifyIcon) {
 					number, err := getLastUnstable(newJob)
 					if err != nil {
 						log.Println(err)
-						number = "-1"
+						number = -1
 					}
 					if newJob.Label == number {
 						newJob.Status = "Unstable"
