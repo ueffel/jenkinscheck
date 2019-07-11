@@ -290,6 +290,7 @@ func (tableModel *jobModel) updateJobs(ni *walk.NotifyIcon) {
 				Url:  strings.ReplaceAll(strings.ToLower(ccUrl), "/cc.xml", "/job/"+tableModel.items[i].Name),
 			}
 		} else {
+			newJob.BuildTime = newJob.BuildTime.Local()
 			items[i] = newJob
 			go func() {
 				if newJob.Status == "Failure" {
