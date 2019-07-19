@@ -78,6 +78,7 @@ func main() {
 
 	MainWindow{
 		AssignTo: &mainWindow.MainWindow,
+		Name:     "MainWindow",
 		Icon:     icon,
 		Title:    appName,
 		Size:     Size{900, 800},
@@ -100,27 +101,29 @@ func main() {
 		Layout: HBox{},
 		Children: []Widget{
 			TableView{
-				AssignTo:       &mainWindow.table,
-				MultiSelection: true,
+				AssignTo:              &mainWindow.table,
+				Name:                  "tableView",
+				AlternatingRowBGColor: walk.RGB(240, 240, 240),
+				ColumnsOrderable:      true,
 				Columns: []TableViewColumn{
 					{
-						DataMember: "Status",
-						Width:      70,
+						Name:  "Status",
+						Width: 70,
 					},
 					{
-						DataMember: "Name",
-						Width:      400,
+						Name:  "Name",
+						Width: 400,
 					},
 					{
-						DataMember: "Label",
+						Name: "Label",
 					},
 					{
-						DataMember: "Activity",
+						Name: "Activity",
 					},
 					{
-						DataMember: "BuildTime",
-						Format:     "2006-01-02 15:04:05",
-						Width:      150,
+						Name:   "BuildTime",
+						Format: "2006-01-02 15:04:05",
+						Width:  150,
 					},
 				},
 				Model:           tableModel,
@@ -128,15 +131,11 @@ func main() {
 				StyleCell: func(style *walk.CellStyle) {
 					item := tableModel.items[style.Row()]
 
-					if style.Row()%2 == 1 {
-						style.BackgroundColor = walk.RGB(240, 240, 240)
-					}
-
 					if style.Col() < 0 {
 						return
 					}
 
-					switch mainWindow.table.Columns().At(style.Col()).DataMember() {
+					switch mainWindow.table.Columns().At(style.Col()).Name() {
 					case "Status":
 						style.Font = boldFont
 						switch item.Status {
@@ -195,14 +194,6 @@ func main() {
 		},
 	}.Create()
 
-	sortCol := 0
-	for i := 0; i < mainWindow.table.Columns().Len(); i++ {
-		if mainWindow.table.Columns().At(i).DataMember() == "Name" {
-			sortCol = i
-			break
-		}
-	}
-	tableModel.Sort(sortCol, walk.SortAscending)
 	tableModel.items = []*job{{Name: "Loading..."}}
 	tableModel.PublishRowsReset()
 
@@ -250,6 +241,10 @@ func main() {
 
 	walk.InitWrapperWindow(mainWindow)
 	mainWindow.Run()
+	log.Println("saving settings")
+	if err := settings.Save(); err != nil {
+		log.Fatal(err)
+	}
 	log.Println("closing")
 }
 
