@@ -16,7 +16,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 	var dlg *walk.Dialog
 	var okPB *walk.PushButton
 	var cancelPB *walk.PushButton
-	var ccUrlBox *walk.LineEdit
+	var ccURLBox *walk.LineEdit
 	var ssBox *walk.CheckBox
 	var browserBox *walk.LineEdit
 	var intervalBox *walk.LineEdit
@@ -27,14 +27,14 @@ func (mw *jenkinsMainWindow) openSettings() {
 	remote := new(listModel)
 	own := new(listModel)
 
-	ccUrl := getCCXmlUrl()
+	ccURL := getCCXmlURL()
 	browser, ok := settings.Get("Browser")
 	if !ok {
 		browser = ""
 	}
 	ssBuilds := getSuccessiveSuccessful()
 	interval := getInterval()
-	jobs := getCCXmlJobs(ccUrl)
+	jobs := getCCXmlJobs(ccURL)
 	allItems := make([]*job, len(jobs.Jobs))
 	for i := 0; i < len(jobs.Jobs); i++ {
 		job := jobs.Jobs[i]
@@ -55,22 +55,22 @@ func (mw *jenkinsMainWindow) openSettings() {
 		Layout:        VBox{},
 		Children: []Widget{
 			Composite{
-				MaxSize: Size{800, 500},
+				MaxSize: Size{Width: 800, Height: 500},
 				Layout:  Grid{Columns: 3},
 				Children: []Widget{
 					Label{Text: "URL to cc.xml:"},
 					LineEdit{
 						Alignment: AlignHCenterVCenter,
-						AssignTo:  &ccUrlBox,
-						Text:      ccUrl,
+						AssignTo:  &ccURLBox,
+						Text:      ccURL,
 						OnTextChanged: func() {
-							settings.Put("CC_URL", ccUrlBox.Text())
+							settings.Put("CC_URL", ccURLBox.Text())
 						},
 					},
 					PushButton{
 						Text: "⟳",
 						OnClicked: func() {
-							jobs = getCCXmlJobs(ccUrlBox.Text())
+							jobs = getCCXmlJobs(ccURLBox.Text())
 							allItems = make([]*job, len(jobs.Jobs))
 							for i := 0; i < len(jobs.Jobs); i++ {
 								job := jobs.Jobs[i]
@@ -145,7 +145,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 									},
 									PushButton{
 										Text:    "x",
-										MaxSize: Size{20, 10},
+										MaxSize: Size{Width: 20, Height: 10},
 										OnClicked: func() {
 											remoteFilter.SetText("")
 										},
@@ -154,7 +154,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 							},
 							ListBox{
 								AssignTo:       &remoteLb,
-								MinSize:        Size{400, 400},
+								MinSize:        Size{Width: 400, Height: 400},
 								Model:          remote,
 								MultiSelection: true,
 								OnItemActivated: func() {
@@ -183,8 +183,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 					},
 					Composite{
 						Layout:  VBox{},
-						MinSize: Size{40, 40},
-						MaxSize: Size{40, 40},
+						MinSize: Size{Width: 40, Height: 40},
+						MaxSize: Size{Width: 40, Height: 40},
 						Children: []Widget{
 							HSpacer{},
 							PushButton{
@@ -256,7 +256,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 									},
 									PushButton{
 										Text:    "x",
-										MaxSize: Size{20, 10},
+										MaxSize: Size{Width: 20, Height: 10},
 										OnClicked: func() {
 											ownFilter.SetText("")
 										},
@@ -265,7 +265,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 							},
 							ListBox{
 								AssignTo:       &ownLb,
-								MinSize:        Size{400, 400},
+								MinSize:        Size{Width: 400, Height: 400},
 								Model:          own,
 								MultiSelection: true,
 								OnItemActivated: func() {
@@ -380,9 +380,8 @@ func loadJobs() []*job {
 			ownItems[i] = &job{Name: item}
 		}
 		return substractAndFilterArray(ownItems, []*job{}, "")
-	} else {
-		return []*job{}
 	}
+	return []*job{}
 }
 
 func saveJobs(ownItems []*job) {
@@ -391,9 +390,9 @@ func saveJobs(ownItems []*job) {
 	for i, item := range ownItems {
 		watchedJobs[i] = item.Name
 	}
-	watchedJobsJson, _ := json.Marshal(watchedJobs)
-	log.Println(string(watchedJobsJson))
-	settings.Put("Jobs", string(watchedJobsJson))
+	watchedJobsJSON, _ := json.Marshal(watchedJobs)
+	log.Println(string(watchedJobsJSON))
+	settings.Put("Jobs", string(watchedJobsJSON))
 }
 
 func getInterval() int {
@@ -420,11 +419,11 @@ func getSuccessiveSuccessful() bool {
 	return ssBuilds
 }
 
-func getCCXmlUrl() string {
+func getCCXmlURL() string {
 	settings := walk.App().Settings()
-	ccUrl, ok := settings.Get("CC_URL")
+	ccURL, ok := settings.Get("CC_URL")
 	if !ok {
-		ccUrl = "http://hudson.pdv.lan/cc.xml"
+		ccURL = "http://hudson.pdv.lan/cc.xml"
 	}
-	return ccUrl
+	return ccURL
 }

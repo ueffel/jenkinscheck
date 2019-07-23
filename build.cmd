@@ -2,12 +2,11 @@
 set GOOS=windows
 set GOARCH=amd64
 
-where rsrc > nul 2>&1
+where goversioninfo > nul 2>&1
 if errorlevel 1 (
-    go get -v github.com/akavel/rsrc
+    go get -v github.com/josephspurrier/goversioninfo/cmd/goversioninfo
 )
 
-rem rsrc -manifest main.manifest -arch amd64 -ico ico/favicon.ico
 go generate
 IF ERRORLEVEL 1 GOTO error ELSE IF NOT ERRORLEVEL 0 GOTO error
 

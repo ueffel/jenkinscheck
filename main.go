@@ -1,9 +1,8 @@
-//go:generate rsrc -manifest main.manifest -arch amd64 -ico ico/favicon.ico
+//go:generate goversioninfo.exe -o rsrc.syso
 // JenkinsCheck project main.go
 package main
 
 import (
-	"bytes"
 	"io"
 	"log"
 	"net/http"
@@ -15,11 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gobuffalo/packr/v2"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 	"github.com/lxn/win"
-	"github.com/mat/besticon/ico"
 )
 
 func main() {
@@ -42,8 +39,8 @@ func main() {
 	DEBUG := false
 	var proxy func(*http.Request) (*url.URL, error)
 	if DEBUG {
-		proxyUrl, _ := url.Parse("http://127.0.0.1:8888")
-		proxy = http.ProxyURL(proxyUrl)
+		proxyURL, _ := url.Parse("http://127.0.0.1:8888")
+		proxy = http.ProxyURL(proxyURL)
 	} else {
 		proxy = http.ProxyFromEnvironment
 	}
@@ -54,16 +51,7 @@ func main() {
 	boldFont, _ := walk.NewFont("Calibri", 18, walk.FontBold)
 	solidWhite, _ := walk.NewSolidColorBrush(walk.RGB(255, 255, 255))
 
-	box := packr.New("iconBox", "./ico")
-	imgbytes, err := box.Find("favicon.ico")
-	if err != nil {
-		log.Fatal(err)
-	}
-	img, err := ico.Decode(bytes.NewReader(imgbytes))
-	if err != nil {
-		log.Fatal(err)
-	}
-	icon, err := walk.NewIconFromImage(img)
+	icon, err := walk.NewIconFromResourceId(2)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -81,7 +69,7 @@ func main() {
 		Name:     "MainWindow",
 		Icon:     icon,
 		Title:    appName,
-		Size:     Size{900, 800},
+		Size:     Size{Width: 900, Height: 800},
 		Font:     Font{Family: "Calibri", PointSize: 12},
 		MenuItems: []MenuItem{
 			Menu{
@@ -187,7 +175,7 @@ func main() {
 					if !ok || exe == "" {
 						exe = "explorer.exe" // default browser
 					}
-					cmd := exec.Command(exe, tableModel.items[mainWindow.table.CurrentIndex()].Url)
+					cmd := exec.Command(exe, tableModel.items[mainWindow.table.CurrentIndex()].URL)
 					cmd.Start()
 				},
 			},
@@ -257,20 +245,20 @@ func (m *jobModel) Items() interface{} {
 	return m.items
 }
 
-func (tableModel *jobModel) initJobs() {
-	tableModel.items = loadJobs()
-	tableModel.PublishRowsReset()
+func (m *jobModel) initJobs() {
+	m.items = loadJobs()
+	m.PublishRowsReset()
 }
 
-func (tableModel *jobModel) updateJobs(ni *walk.NotifyIcon) {
+func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 	log.Println("Updating")
-	ccUrl := getCCXmlUrl()
-	jobs := getCCXmlJobs(ccUrl)
-	items := make([]*job, len(tableModel.items))
-	copy(items, tableModel.items)
+	ccURL := getCCXmlURL()
+	jobs := getCCXmlJobs(ccURL)
+	items := make([]*job, len(m.items))
+	copy(items, m.items)
 	for i := 0; i < len(items); i++ {
 		found := false
-		oldJob := tableModel.items[i]
+		oldJob := m.items[i]
 		var newJob *job
 		for j := 0; j < len(jobs.Jobs); j++ {
 			if items[i].Name == jobs.Jobs[j].Name {
@@ -281,8 +269,8 @@ func (tableModel *jobModel) updateJobs(ni *walk.NotifyIcon) {
 		}
 		if !found {
 			items[i] = &job{
-				Name: tableModel.items[i].Name,
-				Url:  strings.ReplaceAll(strings.ToLower(ccUrl), "/cc.xml", "/job/"+tableModel.items[i].Name),
+				Name: m.items[i].Name,
+				URL:  strings.ReplaceAll(strings.ToLower(ccURL), "/cc.xml", "/job/"+m.items[i].Name),
 			}
 		} else {
 			newJob.BuildTime = newJob.BuildTime.Local()
@@ -337,8 +325,8 @@ func (tableModel *jobModel) updateJobs(ni *walk.NotifyIcon) {
 			}()
 		}
 	}
-	tableModel.items = items
-	tableModel.PublishRowsReset()
+	m.items = items
+	m.PublishRowsReset()
 }
 
 type jenkinsMainWindow struct {

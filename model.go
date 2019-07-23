@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -21,7 +20,7 @@ type job struct {
 	Status    string    `xml:"lastBuildStatus,attr"`
 	Label     int       `xml:"lastBuildLabel,attr"`
 	Activity  string    `xml:"activity,attr"`
-	Url       string    `xml:"webUrl,attr"`
+	URL       string    `xml:"webUrl,attr"`
 	BuildTime time.Time `xml:"lastBuildTime,attr"`
 }
 
@@ -56,13 +55,13 @@ func getCCXmlJobs(url string) jobs {
 }
 
 func getLastUnstable(newJob *job) (int, error) {
-	resp, err := http.Get(newJob.Url + "api/xml?xpath=/*/lastUnstableBuild/number")
+	resp, err := http.Get(newJob.URL + "api/xml?xpath=/*/lastUnstableBuild/number")
 	if err != nil {
 		return -1, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return -1, errors.New(fmt.Sprintf("Antwort nicht OK: %d, %s", resp.StatusCode, newJob.Url+"api/xml?xpath=/*/lastUnstableBuild/number"))
+		return -1, fmt.Errorf("Antwort nicht OK: %d, %s", resp.StatusCode, newJob.URL+"api/xml?xpath=/*/lastUnstableBuild/number")
 	}
 	decoder := xml.NewDecoder(resp.Body)
 	var number int
