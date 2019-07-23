@@ -325,8 +325,51 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 			}()
 		}
 	}
-	m.items = items
-	m.PublishRowsReset()
+
+	var changedIdx []int
+	for idx, item := range m.items {
+		var foundItem *job
+		for _, item2 := range items {
+			if item.Name == item2.Name {
+				foundItem = item2
+				break
+			}
+		}
+		if foundItem != nil {
+			changed := false
+			if item.Activity != foundItem.Activity {
+				item.Activity = foundItem.Activity
+				changed = true
+			}
+			if item.BuildTime != foundItem.BuildTime {
+				item.BuildTime = foundItem.BuildTime
+				changed = true
+			}
+			if item.Label != foundItem.Label {
+				item.Label = foundItem.Label
+				changed = true
+			}
+			if item.Status != foundItem.Status {
+				item.Status = foundItem.Status
+				changed = true
+			}
+			if item.URL != foundItem.URL {
+				item.URL = foundItem.URL
+				changed = true
+			}
+			if changed {
+				changedIdx = append(changedIdx, idx)
+			}
+		}
+	}
+
+	if len(changedIdx) <= 5 {
+		for _, idx := range changedIdx {
+			m.PublishRowChanged(idx)
+		}
+	} else {
+		m.PublishRowsReset()
+	}
 }
 
 type jenkinsMainWindow struct {
