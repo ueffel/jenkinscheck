@@ -12,6 +12,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lxn/walk"
@@ -256,6 +257,7 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 	jobs := getCCXmlJobs(ccURL)
 	items := make([]*job, len(m.items))
 	copy(items, m.items)
+	var wg sync.WaitGroup
 	for i := 0; i < len(items); i++ {
 		found := false
 		oldJob := m.items[i]
@@ -275,7 +277,9 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 		} else {
 			newJob.BuildTime = newJob.BuildTime.Local()
 			items[i] = newJob
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				if newJob.Status == "Failure" {
 					number, err := getLastUnstable(newJob)
 					if err != nil {
@@ -325,6 +329,7 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 			}()
 		}
 	}
+	wg.Wait()
 
 	var changedIdx []int
 	for idx, item := range m.items {
