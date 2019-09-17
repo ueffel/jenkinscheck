@@ -3,7 +3,7 @@ build:
   tags:
     - GO1.13
   script:
-    - 'call build.cmd'
+    - .\build.cmd
   artifacts:
     expire_in: 1 day
     name: JenkinsCheck

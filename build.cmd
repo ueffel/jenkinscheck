@@ -10,7 +10,7 @@ if errorlevel 1 (
 go generate
 IF ERRORLEVEL 1 GOTO error ELSE IF NOT ERRORLEVEL 0 GOTO error
 
-go build -ldflags="-H windowsgui"
+go build -v -ldflags="-H windowsgui"
 IF ERRORLEVEL 1 GOTO error ELSE IF NOT ERRORLEVEL 0 GOTO error
 
 
