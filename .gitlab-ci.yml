@@ -1,0 +1,11 @@
+
+build:
+  tags:
+    - GO1.13
+  script:
+    - 'call build.cmd'
+  artifacts:
+    expire_in: 1 day
+    name: JenkinsCheck
+    paths:
+      - 'JenkinsCheck.exe'
