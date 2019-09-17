@@ -47,6 +47,7 @@ func main() {
 	}
 	trans := &http.Transport{Proxy: proxy}
 	http.DefaultTransport = trans
+	http.DefaultClient.Timeout = 5 * time.Second
 
 	mainWindow := new(jenkinsMainWindow)
 	boldFont, _ := walk.NewFont("Calibri", 18, walk.FontBold)
@@ -90,10 +91,10 @@ func main() {
 		Layout: HBox{},
 		Children: []Widget{
 			TableView{
-				AssignTo:              &mainWindow.table,
-				Name:                  "tableView",
-				AlternatingRowBGColor: walk.RGB(240, 240, 240),
-				ColumnsOrderable:      true,
+				AssignTo:         &mainWindow.table,
+				Name:             "tableView",
+				AlternatingRowBG: true,
+				ColumnsOrderable: true,
 				Columns: []TableViewColumn{
 					{
 						Name:  "Status",
@@ -209,20 +210,20 @@ func main() {
 	exitAction.Triggered().Attach(doExit)
 	ni.ContextMenu().Actions().Add(exitAction)
 
-	tableModel.initJobs()
-	go tableModel.updateJobs(ni)
+	go tableModel.initJobs(ni)
 
 	interval := getInterval()
 
-	mainWindow.ticker = time.NewTicker(time.Duration(interval) * time.Second)
-	quit := make(chan struct{})
+	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	quit := make(chan bool, 1)
 	go func() {
 		for {
 			select {
-			case <-mainWindow.ticker.C:
+			case <-ticker.C:
 				tableModel.updateJobs(ni)
 			case <-quit:
-				mainWindow.ticker.Stop()
+				ticker.Stop()
+				break
 			}
 		}
 	}()
@@ -230,6 +231,7 @@ func main() {
 
 	walk.InitWrapperWindow(mainWindow)
 	mainWindow.Run()
+	quit <- true
 	log.Println("saving settings")
 	if err := settings.Save(); err != nil {
 		log.Fatal(err)
@@ -246,9 +248,10 @@ func (m *jobModel) Items() interface{} {
 	return m.items
 }
 
-func (m *jobModel) initJobs() {
+func (m *jobModel) initJobs(ni *walk.NotifyIcon) {
 	m.items = loadJobs()
 	m.PublishRowsReset()
+	m.updateJobs(ni)
 }
 
 func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
@@ -384,7 +387,10 @@ type jenkinsMainWindow struct {
 }
 
 func doExit() {
-	walk.App().ActiveForm().AsFormBase().Close()
+	walk.App().ActiveForm().Synchronize(func() {
+		walk.App().ActiveForm().AsFormBase().Close()
+		walk.App().Exit(0)
+	})
 }
 
 func (mw *jenkinsMainWindow) reInit() {
@@ -397,8 +403,7 @@ func (mw *jenkinsMainWindow) reInit() {
 		interval, _ = strconv.Atoi(intervalStr)
 	}
 	mw.ticker = time.NewTicker(time.Duration(interval) * time.Second)
-	mw.table.Model().(*jobModel).initJobs()
-	mw.table.Model().(*jobModel).updateJobs(nil)
+	mw.table.Model().(*jobModel).initJobs(nil)
 }
 
 func (mw *jenkinsMainWindow) WndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {

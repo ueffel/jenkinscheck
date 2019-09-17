@@ -11,19 +11,27 @@ import (
 	. "github.com/lxn/walk/declarative"
 )
 
+type settingsWindow struct {
+	*walk.Dialog
+	okPB         *walk.PushButton
+	cancelPB     *walk.PushButton
+	ccURLBox     *walk.LineEdit
+	ssBox        *walk.CheckBox
+	reloadPB     *walk.PushButton
+	browserBox   *walk.LineEdit
+	intervalBox  *walk.LineEdit
+	ownFilter    *walk.LineEdit
+	remoteFilter *walk.LineEdit
+	remoteLb     *walk.ListBox
+	ownLb        *walk.ListBox
+	allItems     []*job
+	ownItems     []*job
+}
+
 func (mw *jenkinsMainWindow) openSettings() {
 	settings := walk.App().Settings()
-	var dlg *walk.Dialog
-	var okPB *walk.PushButton
-	var cancelPB *walk.PushButton
-	var ccURLBox *walk.LineEdit
-	var ssBox *walk.CheckBox
-	var browserBox *walk.LineEdit
-	var intervalBox *walk.LineEdit
-	var ownFilter *walk.LineEdit
-	var remoteFilter *walk.LineEdit
-	var remoteLb *walk.ListBox
-	var ownLb *walk.ListBox
+
+	dlg := new(settingsWindow)
 	remote := new(listModel)
 	own := new(listModel)
 
@@ -34,24 +42,29 @@ func (mw *jenkinsMainWindow) openSettings() {
 	}
 	ssBuilds := getSuccessiveSuccessful()
 	interval := getInterval()
-	jobs := getCCXmlJobs(ccURL)
-	allItems := make([]*job, len(jobs.Jobs))
-	for i := 0; i < len(jobs.Jobs); i++ {
-		job := jobs.Jobs[i]
-		allItems[i] = &job
-	}
-	remote.items = allItems
-	ownItems := loadJobs()
-	own.items = ownItems
-	remote.items = substractAndFilterArray(allItems, ownItems, "")
-	remote.PublishItemsReset()
+	go func() {
+		jobs := getCCXmlJobs(ccURL)
+		dlg.allItems = make([]*job, len(jobs.Jobs))
+		for i := 0; i < len(jobs.Jobs); i++ {
+			job := jobs.Jobs[i]
+			dlg.allItems[i] = &job
+		}
+		remote.items = dlg.allItems
+		dlg.ownItems = loadJobs()
+		own.items = dlg.ownItems
+		remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, "")
+		dlg.Synchronize(func() {
+			remote.PublishItemsReset()
+			own.PublishItemsReset()
+		})
+	}()
 
 	dlgResult, err := Dialog{
-		AssignTo:      &dlg,
+		AssignTo:      &dlg.Dialog,
 		Title:         "Settings",
 		Icon:          mw.Icon(),
-		DefaultButton: &okPB,
-		CancelButton:  &cancelPB,
+		DefaultButton: &dlg.okPB,
+		CancelButton:  &dlg.cancelPB,
 		Layout:        VBox{},
 		Children: []Widget{
 			Composite{
@@ -61,66 +74,73 @@ func (mw *jenkinsMainWindow) openSettings() {
 					Label{Text: "URL to cc.xml:"},
 					LineEdit{
 						Alignment: AlignHCenterVCenter,
-						AssignTo:  &ccURLBox,
+						AssignTo:  &dlg.ccURLBox,
 						Text:      ccURL,
 						OnTextChanged: func() {
-							settings.Put("CC_URL", ccURLBox.Text())
+							settings.Put("CC_URL", dlg.ccURLBox.Text())
 						},
 					},
 					PushButton{
-						Text: "⟳",
+						AssignTo: &dlg.reloadPB,
+						Text:     "⟳",
 						OnClicked: func() {
-							jobs = getCCXmlJobs(ccURLBox.Text())
-							allItems = make([]*job, len(jobs.Jobs))
-							for i := 0; i < len(jobs.Jobs); i++ {
-								job := jobs.Jobs[i]
-								allItems[i] = &job
-							}
-							remote.items = substractAndFilterArray(allItems, ownItems, remoteFilter.Text())
-							remote.PublishItemsReset()
+							dlg.reloadPB.SetEnabled(false)
+							go func() {
+								jobs := getCCXmlJobs(dlg.ccURLBox.Text())
+								dlg.allItems = make([]*job, len(jobs.Jobs))
+								for i := 0; i < len(jobs.Jobs); i++ {
+									job := jobs.Jobs[i]
+									dlg.allItems[i] = &job
+								}
+								remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
+								dlg.Synchronize(func() {
+									remote.PublishItemsReset()
+									dlg.reloadPB.SetEnabled(true)
+								})
+							}()
 						},
 					},
 					Label{
 						Text: "Browser (leave empty for default browser):",
 					},
 					LineEdit{
-						AssignTo: &browserBox,
+						AssignTo: &dlg.browserBox,
 						Text:     browser,
 						OnTextChanged: func() {
-							settings.Put("Browser", browserBox.Text())
+							settings.Put("Browser", dlg.browserBox.Text())
 						},
 					},
 					PushButton{
 						Text: "Browse",
 						OnClicked: func() {
-							dlg := new(walk.FileDialog)
-							dlg.Filter = "Executables (*.exe)|*.exe"
-							ok, err := dlg.ShowOpen(mw)
+							fileDlg := new(walk.FileDialog)
+							fileDlg.Filter = "Executables (*.exe)|*.exe"
+							ok, err := fileDlg.ShowOpen(mw)
 							if err != nil {
 								log.Println(err)
 							}
 							if !ok {
 								return
 							}
-							browserBox.SetText(dlg.FilePath)
+							dlg.browserBox.SetText(fileDlg.FilePath)
 						},
 					},
 					Label{Text: "Interval (in seconds):"},
 					LineEdit{
-						AssignTo: &intervalBox,
+						AssignTo: &dlg.intervalBox,
 						Text:     strconv.Itoa(interval),
 						OnTextChanged: func() {
-							settings.Put("Interval", intervalBox.Text())
+							settings.Put("Interval", dlg.intervalBox.Text())
 						},
 					},
 					HSpacer{},
 					CheckBox{
-						AssignTo:   &ssBox,
+						AssignTo:   &dlg.ssBox,
 						Text:       "Notify after successive successful builds",
 						Checked:    bool(ssBuilds),
 						ColumnSpan: 3,
 						OnCheckedChanged: func() {
-							settings.Put("Successive_successful", strconv.FormatBool(ssBox.Checked()))
+							settings.Put("Successive_successful", strconv.FormatBool(dlg.ssBox.Checked()))
 						},
 					},
 				},
@@ -137,9 +157,9 @@ func (mw *jenkinsMainWindow) openSettings() {
 								Children: []Widget{
 									Label{Text: "Filter:"},
 									LineEdit{
-										AssignTo: &remoteFilter,
+										AssignTo: &dlg.remoteFilter,
 										OnTextChanged: func() {
-											remote.items = substractAndFilterArray(allItems, ownItems, remoteFilter.Text())
+											remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 											remote.PublishItemsReset()
 										},
 									},
@@ -147,22 +167,22 @@ func (mw *jenkinsMainWindow) openSettings() {
 										Text:    "x",
 										MaxSize: Size{Width: 20, Height: 10},
 										OnClicked: func() {
-											remoteFilter.SetText("")
+											dlg.remoteFilter.SetText("")
 										},
 									},
 								},
 							},
 							ListBox{
-								AssignTo:       &remoteLb,
+								AssignTo:       &dlg.remoteLb,
 								MinSize:        Size{Width: 400, Height: 400},
 								Model:          remote,
 								MultiSelection: true,
 								OnItemActivated: func() {
-									items := make([]*job, len(ownItems))
-									copy(items, ownItems)
-									idx := remoteLb.CurrentIndex()
+									items := make([]*job, len(dlg.ownItems))
+									copy(items, dlg.ownItems)
+									idx := dlg.remoteLb.CurrentIndex()
 									found := false
-									for _, item := range ownItems {
+									for _, item := range dlg.ownItems {
 										if item.Name == remote.items[idx].Name {
 											found = true
 											break
@@ -171,12 +191,12 @@ func (mw *jenkinsMainWindow) openSettings() {
 									if !found {
 										items = append(items, remote.items[idx])
 									}
-									ownItems = items
-									own.items = substractAndFilterArray(ownItems, []*job{}, ownFilter.Text())
+									dlg.ownItems = items
+									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(allItems, ownItems, remoteFilter.Text())
+									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
-									saveJobs(ownItems)
+									saveJobs(dlg.ownItems)
 								},
 							},
 						},
@@ -190,11 +210,11 @@ func (mw *jenkinsMainWindow) openSettings() {
 							PushButton{
 								Text: "▶",
 								OnClicked: func() {
-									items := make([]*job, len(ownItems))
-									copy(items, ownItems)
-									for _, idx := range remoteLb.SelectedIndexes() {
+									items := make([]*job, len(dlg.ownItems))
+									copy(items, dlg.ownItems)
+									for _, idx := range dlg.remoteLb.SelectedIndexes() {
 										found := false
-										for _, item := range ownItems {
+										for _, item := range dlg.ownItems {
 											if item.Name == remote.items[idx].Name {
 												found = true
 												break
@@ -204,37 +224,36 @@ func (mw *jenkinsMainWindow) openSettings() {
 											items = append(items, remote.items[idx])
 										}
 									}
-									ownItems = items
-									own.items = substractAndFilterArray(ownItems, []*job{}, ownFilter.Text())
+									dlg.ownItems = items
+									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(allItems, ownItems, remoteFilter.Text())
+									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
-									saveJobs(ownItems)
+									saveJobs(dlg.ownItems)
 								},
 							},
 							PushButton{
 								Text: "◀",
 								OnClicked: func() {
 									items := []*job{}
-									log.Println(ownLb.SelectedIndexes())
 									lastIdx := 0
-									for _, idx := range ownLb.SelectedIndexes() {
+									for _, idx := range dlg.ownLb.SelectedIndexes() {
 										var ownIdx int
-										for ownIdx = 0; ownIdx < len(ownItems); ownIdx++ {
-											if ownItems[ownIdx].Name == own.items[idx].Name {
+										for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
+											if dlg.ownItems[ownIdx].Name == own.items[idx].Name {
 												break
 											}
 										}
-										ownItems = append(ownItems[:ownIdx], ownItems[ownIdx+1:]...)
+										dlg.ownItems = append(dlg.ownItems[:ownIdx], dlg.ownItems[ownIdx+1:]...)
 										items = append(items, own.items[lastIdx:idx]...)
 										lastIdx = idx + 1
 									}
 									items = append(items, own.items[lastIdx:]...)
-									own.items = substractAndFilterArray(ownItems, []*job{}, ownFilter.Text())
+									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(allItems, ownItems, remoteFilter.Text())
+									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
-									saveJobs(ownItems)
+									saveJobs(dlg.ownItems)
 								},
 							},
 							HSpacer{},
@@ -248,9 +267,9 @@ func (mw *jenkinsMainWindow) openSettings() {
 								Children: []Widget{
 									Label{Text: "Filter:"},
 									LineEdit{
-										AssignTo: &ownFilter,
+										AssignTo: &dlg.ownFilter,
 										OnTextChanged: func() {
-											own.items = substractAndFilterArray(ownItems, []*job{}, ownFilter.Text())
+											own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 											own.PublishItemsReset()
 										},
 									},
@@ -258,33 +277,33 @@ func (mw *jenkinsMainWindow) openSettings() {
 										Text:    "x",
 										MaxSize: Size{Width: 20, Height: 10},
 										OnClicked: func() {
-											ownFilter.SetText("")
+											dlg.ownFilter.SetText("")
 										},
 									},
 								},
 							},
 							ListBox{
-								AssignTo:       &ownLb,
+								AssignTo:       &dlg.ownLb,
 								MinSize:        Size{Width: 400, Height: 400},
 								Model:          own,
 								MultiSelection: true,
 								OnItemActivated: func() {
 									items := []*job{}
-									idx := ownLb.CurrentIndex()
+									idx := dlg.ownLb.CurrentIndex()
 									items = append(items, own.items[:idx]...)
 									items = append(items, own.items[idx+1:]...)
 									var ownIdx int
-									for ownIdx = 0; ownIdx < len(ownItems); ownIdx++ {
-										if ownItems[ownIdx].Name == own.items[idx].Name {
+									for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
+										if dlg.ownItems[ownIdx].Name == own.items[idx].Name {
 											break
 										}
 									}
-									ownItems = append(ownItems[:ownIdx], ownItems[ownIdx+1:]...)
-									own.items = substractAndFilterArray(ownItems, []*job{}, ownFilter.Text())
+									dlg.ownItems = append(dlg.ownItems[:ownIdx], dlg.ownItems[ownIdx+1:]...)
+									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(allItems, ownItems, remoteFilter.Text())
+									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
-									saveJobs(ownItems)
+									saveJobs(dlg.ownItems)
 								},
 							},
 						},
@@ -297,14 +316,14 @@ func (mw *jenkinsMainWindow) openSettings() {
 				Children: []Widget{
 					HSpacer{},
 					PushButton{
-						AssignTo: &okPB,
+						AssignTo: &dlg.okPB,
 						Text:     "Ok",
 						OnClicked: func() {
 							dlg.Close(walk.DlgCmdOK)
 						},
 					},
 					PushButton{
-						AssignTo: &cancelPB,
+						AssignTo: &dlg.cancelPB,
 						Text:     "Cancel",
 						OnClicked: func() {
 							dlg.Close(walk.DlgCmdCancel)
@@ -391,7 +410,6 @@ func saveJobs(ownItems []*job) {
 		watchedJobs[i] = item.Name
 	}
 	watchedJobsJSON, _ := json.Marshal(watchedJobs)
-	log.Println(string(watchedJobsJSON))
 	settings.Put("Jobs", string(watchedJobsJSON))
 }
 
