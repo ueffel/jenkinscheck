@@ -42,24 +42,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 	}
 	ssBuilds := getSuccessiveSuccessful()
 	interval := getInterval()
-	go func() {
-		jobs := getCCXmlJobs(ccURL)
-		dlg.allItems = make([]*job, len(jobs.Jobs))
-		for i := 0; i < len(jobs.Jobs); i++ {
-			job := jobs.Jobs[i]
-			dlg.allItems[i] = &job
-		}
-		remote.items = dlg.allItems
-		dlg.ownItems = loadJobs()
-		own.items = dlg.ownItems
-		remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, "")
-		dlg.Synchronize(func() {
-			remote.PublishItemsReset()
-			own.PublishItemsReset()
-		})
-	}()
 
-	dlgResult, err := Dialog{
+	err := Dialog{
 		AssignTo:      &dlg.Dialog,
 		Title:         "Settings",
 		Icon:          mw.Icon(),
@@ -332,11 +316,31 @@ func (mw *jenkinsMainWindow) openSettings() {
 				},
 			},
 		},
-	}.Run(mw)
+	}.Create(mw)
 
 	if err != nil {
 		log.Println(err)
 	}
+
+	go func() {
+		jobs := getCCXmlJobs(ccURL)
+		dlg.allItems = make([]*job, len(jobs.Jobs))
+		for i := 0; i < len(jobs.Jobs); i++ {
+			job := jobs.Jobs[i]
+			dlg.allItems[i] = &job
+		}
+		remote.items = dlg.allItems
+		dlg.ownItems = loadJobs()
+		own.items = dlg.ownItems
+		remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, "")
+		dlg.Synchronize(func() {
+			remote.PublishItemsReset()
+			own.PublishItemsReset()
+		})
+	}()
+
+	dlgResult := dlg.Run()
+
 	if dlgResult == walk.DlgCmdOK {
 		settings.Save()
 		mw.reInit()
