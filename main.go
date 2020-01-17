@@ -1,4 +1,4 @@
-//go:generate goversioninfo.exe -o rsrc.syso
+//go:generate goversioninfo -o rsrc.syso
 // JenkinsCheck project main.go
 package main
 

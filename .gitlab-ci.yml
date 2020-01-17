@@ -3,7 +3,8 @@ build:
   tags:
     - GO1.13
   script:
-    - .\build.cmd
+    - go generate -v
+    - go build -v -ldflags="-H windowsgui"
   artifacts:
     expire_in: 1 day
     name: JenkinsCheck
