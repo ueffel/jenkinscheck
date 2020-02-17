@@ -1,14 +1,14 @@
 {
     "FixedFileInfo": {
         "FileVersion": {
-            "Major": 1,
-            "Minor": 1,
+            "Major": 2,
+            "Minor": 0,
             "Patch": 0,
             "Build": 0
         },
         "ProductVersion": {
-            "Major": 1,
-            "Minor": 1,
+            "Major": 2,
+            "Minor": 0,
             "Patch": 0,
             "Build": 0
         },
@@ -22,14 +22,14 @@
         "Comments": "Utility to monitor the status of jenkins jobs (https://jenkins.io)",
         "CompanyName": "PDV GmbH",
         "FileDescription": "JenkinsCheck",
-        "FileVersion": "1.1.0.0",
+        "FileVersion": "2.0.0.0",
         "InternalName": "JenkinsCheck.exe",
         "LegalCopyright": "Copyright (c) PDV GmbH 2020",
         "LegalTrademarks": "",
         "OriginalFilename": "JenkinsCheck.exe",
         "PrivateBuild": "",
         "ProductName": "JenkinsCheck",
-        "ProductVersion": "1.1.0.0",
+        "ProductVersion": "2.0.0.0",
         "SpecialBuild": ""
     },
     "VarFileInfo": {

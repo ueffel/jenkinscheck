@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/xml"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,24 +9,51 @@ import (
 )
 
 type jobs struct {
-	//XMLName xml.Name `xml:"Projects"`
-	Jobs []job `xml:"Project"`
+	Jobs []job `json:"jobs"`
 }
 
 type job struct {
-	//XMLName   xml.Name  `xml:"Project"`
-	checked   bool
-	Name      string    `xml:"name,attr"`
-	Status    string    `xml:"lastBuildStatus,attr"`
-	Label     int       `xml:"lastBuildLabel,attr"`
-	Activity  string    `xml:"activity,attr"`
-	URL       string    `xml:"webUrl,attr"`
-	BuildTime time.Time `xml:"lastBuildTime,attr"`
+	Name               string `json:"displayName"`
+	FullName           string `json:"fullDisplayName"`
+	Color              string `json:"color"`
+	URL                string `json:"url"`
+	LastBuild          build  `json:"lastBuild,omitempty"`
+	LastCompletedBuild build  `json:"lastCompletedBuild,omitempty"`
 }
 
-func getCCXmlJobs(url string) jobs {
-	resp, err := http.Get(url)
-	jobs := jobs{Jobs: []job{}}
+type build struct {
+	Building  bool      `json:"building"`
+	Label     int       `json:"number"`
+	Result    string    `json:"result,omitempty"`
+	Timestamp time.Time `json:"timestamp,omitempty"`
+}
+
+func (b *build) UnmarshalJSON(s []byte) error {
+	type Alias build
+	alias := struct {
+		*Alias
+		Timestamp int64 `json:"timestamp"`
+	}{}
+	err := json.Unmarshal(s, &alias)
+	if err != nil {
+		return err
+	}
+	if alias.Alias != nil {
+		b.Building = alias.Building
+		b.Label = alias.Label
+		b.Result = alias.Result
+		b.Timestamp = time.Unix(alias.Timestamp/1000, 0)
+	}
+	return nil
+}
+
+func getJobs(url string) jobs {
+	resp, err := http.Get(url + "/api/json?tree=jobs[_class,fullDisplayName,displayName,url,color," +
+		"lastBuild[number,timestamp,result,building],lastCompletedBuild[number,timestamp,result,building]]")
+	var jobs jobs
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		log.Println(err)
 		items := make([]job, 1)
@@ -34,7 +61,6 @@ func getCCXmlJobs(url string) jobs {
 		jobs.Jobs = items
 		return jobs
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Println("Antwort war nicht OK")
@@ -43,7 +69,7 @@ func getCCXmlJobs(url string) jobs {
 		jobs.Jobs = items
 		return jobs
 	}
-	decoder := xml.NewDecoder(resp.Body)
+	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&jobs)
 	if err != nil {
 		log.Println(err)
@@ -54,21 +80,3 @@ func getCCXmlJobs(url string) jobs {
 	return jobs
 }
 
-func getLastUnstable(newJob *job) (int, error) {
-	resp, err := http.Get(newJob.URL + "api/xml?xpath=/*/lastUnstableBuild/number")
-	if err != nil {
-		return -1, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return -1, fmt.Errorf("Antwort nicht OK: %d, %s", resp.StatusCode, newJob.URL+"api/xml?xpath=/*/lastUnstableBuild/number")
-	}
-	decoder := xml.NewDecoder(resp.Body)
-	var number int
-	err = decoder.Decode(&number)
-	if err != nil {
-		return -1, err
-	}
-
-	return number, nil
-}

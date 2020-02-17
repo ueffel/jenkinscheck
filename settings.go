@@ -35,7 +35,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 	remote := new(listModel)
 	own := new(listModel)
 
-	ccURL := getCCXmlURL()
+	ccURL := getJobsURL()
 	browser, ok := settings.Get("Browser")
 	if !ok {
 		browser = ""
@@ -70,7 +70,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 						OnClicked: func() {
 							dlg.reloadPB.SetEnabled(false)
 							go func() {
-								jobs := getCCXmlJobs(dlg.ccURLBox.Text())
+								jobs := getJobs(dlg.ccURLBox.Text())
 								dlg.allItems = make([]*job, len(jobs.Jobs))
 								for i := 0; i < len(jobs.Jobs); i++ {
 									job := jobs.Jobs[i]
@@ -323,7 +323,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 	}
 
 	go func() {
-		jobs := getCCXmlJobs(ccURL)
+		jobs := getJobs(ccURL)
 		dlg.allItems = make([]*job, len(jobs.Jobs))
 		for i := 0; i < len(jobs.Jobs); i++ {
 			job := jobs.Jobs[i]
@@ -441,7 +441,7 @@ func getSuccessiveSuccessful() bool {
 	return ssBuilds
 }
 
-func getCCXmlURL() string {
+func getJobsURL() string {
 	settings := walk.App().Settings()
 	ccURL, ok := settings.Get("CC_URL")
 	if !ok {

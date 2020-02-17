@@ -6,13 +6,11 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/lxn/walk"
@@ -37,14 +35,7 @@ func main() {
 	defer logger.Close()
 	multiLogger := io.MultiWriter(os.Stdout, logger)
 	log.SetOutput(multiLogger)
-	DEBUG := false
-	var proxy func(*http.Request) (*url.URL, error)
-	if DEBUG {
-		proxyURL, _ := url.Parse("http://127.0.0.1:8888")
-		proxy = http.ProxyURL(proxyURL)
-	} else {
-		proxy = http.ProxyFromEnvironment
-	}
+	proxy := http.ProxyFromEnvironment
 	trans := &http.Transport{Proxy: proxy}
 	http.DefaultTransport = trans
 	http.DefaultClient.Timeout = 5 * time.Second
@@ -61,7 +52,10 @@ func main() {
 	app.SetOrganizationName(company)
 	app.SetProductName(appName)
 	settings := walk.NewIniFileSettings("settings.ini")
-	settings.Load()
+	err = settings.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 	app.SetSettings(settings)
 
 	tableModel := new(jobModel)
@@ -97,21 +91,26 @@ func main() {
 				ColumnsOrderable: true,
 				Columns: []TableViewColumn{
 					{
-						Name:  "Status",
+						Title: "Status",
+						Name:  "LastCompletedBuild.Result",
 						Width: 70,
 					},
 					{
+						Title: "Name",
 						Name:  "Name",
 						Width: 400,
 					},
 					{
-						Name: "Label",
+						Title: "Label",
+						Name:  "LastBuild.Label",
 					},
 					{
-						Name: "Activity",
+						Title: "Activity",
+						Name:  "LastBuild.Building",
 					},
 					{
-						Name:   "BuildTime",
+						Title:  "BuildTime",
+						Name:   "LastBuild.Timestamp",
 						Format: "2006-01-02 15:04:05",
 						Width:  150,
 					},
@@ -125,29 +124,30 @@ func main() {
 						return
 					}
 
-					switch mainWindow.table.Columns().At(style.Col()).Name() {
+					switch mainWindow.table.Columns().At(style.Col()).Title() {
 					case "Status":
 						style.Font = boldFont
-						switch item.Status {
-						case "Success":
+						switch item.LastCompletedBuild.Result {
+						case "SUCCESS":
 							canvas := style.Canvas()
 							if canvas != nil {
 								canvas.GradientFillRectangle(walk.RGB(100, 200, 100), walk.RGB(200, 250, 200), walk.Horizontal, style.Bounds())
 								canvas.DrawText("👍", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
-						case "Unstable":
+						case "UNSTABLE":
 							canvas := style.Canvas()
 							if canvas != nil {
 								canvas.GradientFillRectangle(walk.RGB(150, 150, 0), walk.RGB(250, 250, 0), walk.Horizontal, style.Bounds())
 								canvas.DrawText("👀", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
-						case "Failure":
+						case "FAILURE":
 							canvas := style.Canvas()
 							if canvas != nil {
 								canvas.GradientFillRectangle(walk.RGB(200, 0, 0), walk.RGB(100, 0, 0), walk.Horizontal, style.Bounds())
 								canvas.DrawText("👎", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
 						case "":
+							fallthrough
 						default:
 							canvas := style.Canvas()
 							if canvas != nil {
@@ -156,14 +156,12 @@ func main() {
 							}
 						}
 					case "Activity":
-						switch item.Activity {
-						case "Sleeping":
-							canvas := style.Canvas()
+						canvas := style.Canvas()
+						if !item.LastBuild.Building {
 							if canvas != nil {
 								canvas.DrawText("💤", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
-						case "Building":
-							canvas := style.Canvas()
+						} else {
 							if canvas != nil {
 								canvas.DrawText("🔨", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
@@ -256,11 +254,10 @@ func (m *jobModel) initJobs(ni *walk.NotifyIcon) {
 
 func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 	log.Println("Updating")
-	ccURL := getCCXmlURL()
-	jobs := getCCXmlJobs(ccURL)
+	ccURL := getJobsURL()
+	jobs := getJobs(ccURL)
 	items := make([]*job, len(m.items))
 	copy(items, m.items)
-	var wg sync.WaitGroup
 	for i := 0; i < len(items); i++ {
 		found := false
 		oldJob := m.items[i]
@@ -278,61 +275,45 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 				URL:  strings.ReplaceAll(strings.ToLower(ccURL), "/cc.xml", "/job/"+m.items[i].Name),
 			}
 		} else {
-			newJob.BuildTime = newJob.BuildTime.Local()
 			items[i] = newJob
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if newJob.Status == "Failure" {
-					number, err := getLastUnstable(newJob)
-					if err != nil {
-						log.Println(err)
-						number = -1
+			oldStatus := oldJob.LastCompletedBuild.Result
+			newStatus := newJob.LastCompletedBuild.Result
+			if ni != nil && oldJob.LastCompletedBuild.Label < newJob.LastCompletedBuild.Label {
+				appName := walk.App().ProductName()
+				switch oldStatus {
+				case "SUCCESS":
+					switch newStatus {
+					case "SUCCESS":
+						if getSuccessiveSuccessful() {
+							ni.ShowInfo(appName, newJob.Name+" is still successful.")
+						}
+					case "UNSTABLE":
+						ni.ShowWarning(appName, newJob.Name+" has become unstable.")
+					case "FAILURE":
+						ni.ShowError(appName, newJob.Name+" failed.")
 					}
-					if newJob.Label == number {
-						newJob.Status = "Unstable"
+				case "UNSTABLE":
+					switch newStatus {
+					case "SUCCESS":
+						ni.ShowInfo(appName, newJob.Name+" is successful again.")
+					case "UNSTABLE":
+						ni.ShowWarning(appName, newJob.Name+" is still unstable.")
+					case "FAILURE":
+						ni.ShowError(appName, newJob.Name+" failed.")
 					}
-				}
-				oldStatus := oldJob.Status
-				newStatus := newJob.Status
-				if ni != nil && oldJob.Label < newJob.Label {
-					appName := walk.App().ProductName()
-					switch oldStatus {
-					case "Success":
-						switch newStatus {
-						case "Success":
-							if getSuccessiveSuccessful() {
-								ni.ShowInfo(appName, newJob.Name+" is still successful.")
-							}
-						case "Unstable":
-							ni.ShowWarning(appName, newJob.Name+" has become unstable.")
-						case "Failure":
-							ni.ShowError(appName, newJob.Name+" failed.")
-						}
-					case "Unstable":
-						switch newStatus {
-						case "Success":
-							ni.ShowInfo(appName, newJob.Name+" is successful again.")
-						case "Unstable":
-							ni.ShowWarning(appName, newJob.Name+" is still unstable.")
-						case "Failure":
-							ni.ShowError(appName, newJob.Name+" failed.")
-						}
-					case "Failure":
-						switch newStatus {
-						case "Success":
-							ni.ShowInfo(appName, newJob.Name+" is successful again.")
-						case "Unstable":
-							ni.ShowWarning(appName, newJob.Name+" is at least unstable now.")
-						case "Failure":
-							ni.ShowError(appName, newJob.Name+" still failing.")
-						}
+				case "FAILURE":
+					switch newStatus {
+					case "SUCCESS":
+						ni.ShowInfo(appName, newJob.Name+" is successful again.")
+					case "UNSTABLE":
+						ni.ShowWarning(appName, newJob.Name+" is at least unstable now.")
+					case "FAILURE":
+						ni.ShowError(appName, newJob.Name+" still failing.")
 					}
 				}
-			}()
+			}
 		}
 	}
-	wg.Wait()
 
 	var changedIdx []int
 	for idx, item := range m.items {
@@ -345,20 +326,12 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 		}
 		if foundItem != nil {
 			changed := false
-			if item.Activity != foundItem.Activity {
-				item.Activity = foundItem.Activity
+			if item.LastBuild != foundItem.LastBuild {
+				item.LastBuild = foundItem.LastBuild
 				changed = true
 			}
-			if item.BuildTime != foundItem.BuildTime {
-				item.BuildTime = foundItem.BuildTime
-				changed = true
-			}
-			if item.Label != foundItem.Label {
-				item.Label = foundItem.Label
-				changed = true
-			}
-			if item.Status != foundItem.Status {
-				item.Status = foundItem.Status
+			if item.LastCompletedBuild != foundItem.LastCompletedBuild {
+				item.LastCompletedBuild = foundItem.LastCompletedBuild
 				changed = true
 			}
 			if item.URL != foundItem.URL {
