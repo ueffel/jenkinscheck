@@ -9,7 +9,7 @@ import (
 )
 
 type jobs struct {
-	Jobs []job `json:"jobs"`
+	Jobs []*job `json:"jobs"`
 }
 
 type job struct {
@@ -19,6 +19,7 @@ type job struct {
 	URL                string `json:"url"`
 	LastBuild          build  `json:"lastBuild,omitempty"`
 	LastCompletedBuild build  `json:"lastCompletedBuild,omitempty"`
+	Class              string `json:"_class,omitempty"`
 }
 
 type build struct {
@@ -47,36 +48,53 @@ func (b *build) UnmarshalJSON(s []byte) error {
 	return nil
 }
 
+func getJobsFromMultiple(urls []string) jobs {
+	var jobs jobs
+	for _, url := range urls {
+		j := getJobs(url)
+		jobs.Jobs = append(jobs.Jobs, j.Jobs...)
+	}
+	return jobs
+}
+
 func getJobs(url string) jobs {
 	resp, err := http.Get(url + "/api/json?tree=jobs[_class,fullDisplayName,displayName,url,color," +
 		"lastBuild[number,timestamp,result,building],lastCompletedBuild[number,timestamp,result,building]]")
 	var jobs jobs
-	if resp.Body != nil {
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
 		log.Println(err)
-		items := make([]job, 1)
-		items[0] = job{Name: err.Error()}
+		items := make([]*job, 1)
+		items[0] = &job{Name: err.Error()}
 		jobs.Jobs = items
 		return jobs
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Println("Antwort war nicht OK")
-		items := make([]job, 1)
-		items[0] = job{Name: fmt.Sprintf("Antwort war nicht OK: %d", resp.StatusCode)}
+		log.Println(url, "Antwort war nicht OK")
+		items := make([]*job, 1)
+		items[0] = &job{Name: fmt.Sprintf("%c%s: Antwort war nicht OK: %d", 9, url, resp.StatusCode)}
 		jobs.Jobs = items
 		return jobs
 	}
 	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&jobs)
 	if err != nil {
-		log.Println(err)
-		items := make([]job, 1)
-		items[0] = job{Name: "Antwort konnte nicht decodiert werden: " + err.Error()}
+		log.Println(url, err)
+		items := make([]*job, 1)
+		items[0] = &job{Name: fmt.Sprintf("%c%s: Antwort konnte nicht decodiert werden: %s", 9, url, err)}
 		jobs.Jobs = items
 	}
+
+	var deleteIdx []int
+	for i := 0; i < len(jobs.Jobs); i++ {
+		if jobs.Jobs[i].Class == "com.cloudbees.hudson.plugins.folder.Folder" {
+			deleteIdx = append(deleteIdx, i)
+		}
+	}
+	jobs.Jobs = deleteFromJobsArray(jobs.Jobs, deleteIdx...)
+
 	return jobs
 }
-

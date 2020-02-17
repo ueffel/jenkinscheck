@@ -254,8 +254,8 @@ func (m *jobModel) initJobs(ni *walk.NotifyIcon) {
 
 func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 	log.Println("Updating")
-	ccURL := getJobsURL()
-	jobs := getJobs(ccURL)
+	jenkinsURLs := getJobsURLs()
+	jobs := getJobsFromMultiple(jenkinsURLs)
 	items := make([]*job, len(m.items))
 	copy(items, m.items)
 	for i := 0; i < len(items); i++ {
@@ -265,14 +265,14 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 		for j := 0; j < len(jobs.Jobs); j++ {
 			if items[i].Name == jobs.Jobs[j].Name {
 				found = true
-				newJob = &jobs.Jobs[j]
+				newJob = jobs.Jobs[j]
 				break
 			}
 		}
 		if !found {
 			items[i] = &job{
 				Name: m.items[i].Name,
-				URL:  strings.ReplaceAll(strings.ToLower(ccURL), "/cc.xml", "/job/"+m.items[i].Name),
+				URL:  strings.ReplaceAll(strings.ToLower(jenkinsURLs[0]), "/cc.xml", "/job/"+m.items[i].Name),
 			}
 		} else {
 			items[i] = newJob
