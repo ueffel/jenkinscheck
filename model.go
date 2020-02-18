@@ -20,6 +20,7 @@ type job struct {
 	LastBuild          build  `json:"lastBuild,omitempty"`
 	LastCompletedBuild build  `json:"lastCompletedBuild,omitempty"`
 	Class              string `json:"_class,omitempty"`
+	Jenkins            string `json:"-"`
 }
 
 type build struct {
@@ -67,7 +68,10 @@ func getJobs(url string) jobs {
 	if err != nil {
 		log.Println(err)
 		items := make([]*job, 1)
-		items[0] = &job{Name: err.Error()}
+		items[0] = &job{
+			Name:    err.Error(),
+			Jenkins: url,
+		}
 		jobs.Jobs = items
 		return jobs
 	}
@@ -75,7 +79,10 @@ func getJobs(url string) jobs {
 	if resp.StatusCode != http.StatusOK {
 		log.Println(url, "Antwort war nicht OK")
 		items := make([]*job, 1)
-		items[0] = &job{Name: fmt.Sprintf("%c%s: Antwort war nicht OK: %d", 9, url, resp.StatusCode)}
+		items[0] = &job{
+			Name:    fmt.Sprintf("%c%s: Antwort war nicht OK: %d", 9, url, resp.StatusCode),
+			Jenkins: url,
+		}
 		jobs.Jobs = items
 		return jobs
 	}
@@ -84,17 +91,37 @@ func getJobs(url string) jobs {
 	if err != nil {
 		log.Println(url, err)
 		items := make([]*job, 1)
-		items[0] = &job{Name: fmt.Sprintf("%c%s: Antwort konnte nicht decodiert werden: %s", 9, url, err)}
+		items[0] = &job{
+			Name:    fmt.Sprintf("%c%s: Antwort konnte nicht decodiert werden: %s", 9, url, err),
+			Jenkins: url,
+		}
 		jobs.Jobs = items
 	}
 
 	var deleteIdx []int
 	for i := 0; i < len(jobs.Jobs); i++ {
-		if jobs.Jobs[i].Class == "com.cloudbees.hudson.plugins.folder.Folder" {
+		jobs.Jobs[i].Jenkins = url
+		if jobs.Jobs[i].FullName != "" {
+			jobs.Jobs[i].Name = jobs.Jobs[i].FullName
+		}
+		if jobs.Jobs[i].Class == "com.cloudbees.hudson.plugins.folder.Folder" ||
+			jobs.Jobs[i].Class == "jenkins.branch.OrganizationFolder" ||
+			jobs.Jobs[i].Class == "org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject" {
 			deleteIdx = append(deleteIdx, i)
 		}
 	}
 	jobs.Jobs = deleteFromJobsArray(jobs.Jobs, deleteIdx...)
 
 	return jobs
+}
+
+func deleteFromJobsArray(input []*job, indexes ...int) []*job {
+	var output []*job
+	lastIdx := 0
+	for _, idx := range indexes {
+		output = append(output, input[lastIdx:idx]...)
+		lastIdx = idx + 1
+	}
+	output = append(output, input[lastIdx:]...)
+	return output
 }

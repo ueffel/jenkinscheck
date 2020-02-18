@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,6 +27,7 @@ type settingsWindow struct {
 	remoteLb     *walk.ListBox
 	ownLb        *walk.ListBox
 	allItems     []*job
+	ownItems     []*job
 }
 
 func (mw *jenkinsMainWindow) openSettings() {
@@ -113,7 +115,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 											job := jobs.Jobs[i]
 											dlg.allItems[i] = job
 										}
-										remote.items = substractAndFilterArray(dlg.allItems, own.items, dlg.remoteFilter.Text())
+										remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 										dlg.Synchronize(func() {
 											remote.PublishItemsReset()
 											dlg.reloadPB.SetEnabled(true)
@@ -185,7 +187,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 									LineEdit{
 										AssignTo: &dlg.remoteFilter,
 										OnTextChanged: func() {
-											remote.items = substractAndFilterArray(dlg.allItems, own.items, dlg.remoteFilter.Text())
+											remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 											remote.PublishItemsReset()
 										},
 									},
@@ -204,12 +206,25 @@ func (mw *jenkinsMainWindow) openSettings() {
 								Model:          remote,
 								MultiSelection: true,
 								OnItemActivated: func() {
-									own.items = append(own.items, remote.items[dlg.remoteLb.CurrentIndex()])
-									own.items = substractAndFilterArray(own.items, []*job{}, dlg.ownFilter.Text())
+									items := make([]*job, len(dlg.ownItems))
+									copy(items, dlg.ownItems)
+									idx := dlg.remoteLb.CurrentIndex()
+									found := false
+									for _, item := range dlg.ownItems {
+										if item.Name == remote.items[idx].Name {
+											found = true
+											break
+										}
+									}
+									if !found {
+										items = append(items, remote.items[idx])
+									}
+									dlg.ownItems = items
+									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(dlg.allItems, own.items, dlg.remoteFilter.Text())
+									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
-									saveJobs(own.items)
+									saveJobs(dlg.ownItems)
 								},
 							},
 						},
@@ -223,25 +238,50 @@ func (mw *jenkinsMainWindow) openSettings() {
 							PushButton{
 								Text: "▶",
 								OnClicked: func() {
+									items := make([]*job, len(dlg.ownItems))
+									copy(items, dlg.ownItems)
 									for _, idx := range dlg.remoteLb.SelectedIndexes() {
-										own.items = append(own.items, remote.items[idx])
+										found := false
+										for _, item := range dlg.ownItems {
+											if item.Name == remote.items[idx].Name {
+												found = true
+												break
+											}
+										}
+										if !found {
+											items = append(items, remote.items[idx])
+										}
 									}
-									own.items = substractAndFilterArray(own.items, []*job{}, dlg.ownFilter.Text())
+									dlg.ownItems = items
+									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(dlg.allItems, own.items, dlg.remoteFilter.Text())
+									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
-									saveJobs(own.items)
+									saveJobs(dlg.ownItems)
 								},
 							},
 							PushButton{
 								Text: "◀",
 								OnClicked: func() {
-									own.items = deleteFromJobsArray(own.items, dlg.ownLb.SelectedIndexes()...)
-									own.items = substractAndFilterArray(own.items, []*job{}, dlg.ownFilter.Text())
+									items := []*job{}
+									lastIdx := 0
+									for _, idx := range dlg.ownLb.SelectedIndexes() {
+										var ownIdx int
+										for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
+											if dlg.ownItems[ownIdx].Name == own.items[idx].Name {
+												break
+											}
+										}
+										dlg.ownItems = append(dlg.ownItems[:ownIdx], dlg.ownItems[ownIdx+1:]...)
+										items = append(items, own.items[lastIdx:idx]...)
+										lastIdx = idx + 1
+									}
+									items = append(items, own.items[lastIdx:]...)
+									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(dlg.allItems, own.items, dlg.remoteFilter.Text())
+									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
-									saveJobs(own.items)
+									saveJobs(dlg.ownItems)
 								},
 							},
 							HSpacer{},
@@ -257,7 +297,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 									LineEdit{
 										AssignTo: &dlg.ownFilter,
 										OnTextChanged: func() {
-											own.items = substractAndFilterArray(own.items, []*job{}, dlg.ownFilter.Text())
+											own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 											own.PublishItemsReset()
 										},
 									},
@@ -280,12 +320,18 @@ func (mw *jenkinsMainWindow) openSettings() {
 									idx := dlg.ownLb.CurrentIndex()
 									items = append(items, own.items[:idx]...)
 									items = append(items, own.items[idx+1:]...)
-									own.items = items
-									own.items = substractAndFilterArray(own.items, []*job{}, dlg.ownFilter.Text())
+									var ownIdx int
+									for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
+										if dlg.ownItems[ownIdx].Name == own.items[idx].Name {
+											break
+										}
+									}
+									dlg.ownItems = append(dlg.ownItems[:ownIdx], dlg.ownItems[ownIdx+1:]...)
+									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(dlg.allItems, own.items, dlg.remoteFilter.Text())
+									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
-									saveJobs(own.items)
+									saveJobs(dlg.ownItems)
 								},
 							},
 						},
@@ -328,8 +374,9 @@ func (mw *jenkinsMainWindow) openSettings() {
 			dlg.allItems[i] = job
 		}
 		remote.items = dlg.allItems
-		own.items = loadJobs()
-		remote.items = substractAndFilterArray(dlg.allItems, own.items, "")
+		dlg.ownItems = loadJobs()
+		own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
+		remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 		dlg.Synchronize(func() {
 			remote.PublishItemsReset()
 			own.PublishItemsReset()
@@ -353,8 +400,8 @@ func (dlg *settingsWindow) saveUrls() {
 		return
 	}
 	settings := walk.App().Settings()
-	for idx, newURL := range model.items {
-		settings.Put("URL_"+strconv.Itoa(idx), newURL)
+	for idx = 0; idx < len(model.items); idx++ {
+		settings.Put("URL_"+strconv.Itoa(idx), model.items[idx])
 	}
 	ok = true
 	for ; ok; idx++ {
@@ -400,13 +447,26 @@ func (m *listModel) Value(index int) interface{} {
 
 func substractAndFilterArray(allItems []*job, ownItems []*job, filter string) []*job {
 	remoteItems := []*job{}
+	regexSearch := true
+	regex, err := regexp.Compile("(?i)" + filter)
+	if err != nil {
+		regexSearch = false
+	}
 	for i := 0; i < len(allItems); i++ {
 		skip := false
 		if filter != "" {
-			if strings.Contains(strings.ToLower(allItems[i].Name), strings.ToLower(filter)) {
-				skip = false
+			if regexSearch {
+				if regex.MatchString(allItems[i].Name) {
+					skip = false
+				} else {
+					skip = true
+				}
 			} else {
-				skip = true
+				if strings.Contains(strings.ToLower(allItems[i].Name), strings.ToLower(filter)) {
+					skip = false
+				} else {
+					skip = true
+				}
 			}
 		}
 		for _, item := range ownItems {
@@ -420,7 +480,7 @@ func substractAndFilterArray(allItems []*job, ownItems []*job, filter string) []
 		}
 	}
 	sort.Slice(remoteItems, func(i, j int) bool {
-		return remoteItems[i].Name < remoteItems[j].Name
+		return strings.ToLower(remoteItems[i].Name) < strings.ToLower(remoteItems[j].Name)
 	})
 	return remoteItems
 }
@@ -511,17 +571,6 @@ func contains(haystack []string, needle string) bool {
 
 func deleteFromStringArray(input []string, indexes ...int) []string {
 	var output []string
-	lastIdx := 0
-	for _, idx := range indexes {
-		output = append(output, input[lastIdx:idx]...)
-		lastIdx = idx + 1
-	}
-	output = append(output, input[lastIdx:]...)
-	return output
-}
-
-func deleteFromJobsArray(input []*job, indexes ...int) []*job {
-	var output []*job
 	lastIdx := 0
 	for _, idx := range indexes {
 		output = append(output, input[lastIdx:idx]...)

@@ -253,7 +253,6 @@ func (m *jobModel) initJobs(ni *walk.NotifyIcon) {
 }
 
 func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
-	log.Println("Updating")
 	jenkinsURLs := getJobsURLs()
 	jobs := getJobsFromMultiple(jenkinsURLs)
 	items := make([]*job, len(m.items))
