@@ -114,6 +114,11 @@ func main() {
 						Format: "2006-01-02 15:04:05",
 						Width:  150,
 					},
+					{
+						Title: "Jenkins URL",
+						Name:  "Jenkins",
+						Width: 200,
+					},
 				},
 				Model:           tableModel,
 				CustomRowHeight: 30,
