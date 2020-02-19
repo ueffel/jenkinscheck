@@ -122,7 +122,10 @@ func (mw *jenkinsMainWindow) openSettings() {
 											dlg.allItems[i] = job
 										}
 										dlg.Synchronize(func() {
-											remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
+											remote.items = substractAndFilterArray(
+												dlg.allItems,
+												dlg.ownItems,
+												dlg.remoteFilter.Text())
 											remote.PublishItemsReset()
 											dlg.reloadPB.SetEnabled(true)
 										})
@@ -196,7 +199,10 @@ func (mw *jenkinsMainWindow) openSettings() {
 							LineEdit{
 								AssignTo: &dlg.remoteFilter,
 								OnTextChanged: func() {
-									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
+									remote.items = substractAndFilterArray(
+										dlg.allItems,
+										dlg.ownItems,
+										dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
 								},
 							},
@@ -249,8 +255,9 @@ func (mw *jenkinsMainWindow) openSettings() {
 						Children: []Widget{
 							VSpacer{},
 							PushButton{
-								Text:        "▶",
-								ToolTipText: "Adds selected items from the left list (all jenkins jobs) to the right (monitored jobs)",
+								Text: "▶",
+								ToolTipText: "Adds selected items from the left list (all jenkins" +
+									" jobs) to the right (monitored jobs)",
 								OnClicked: func() {
 									items := make([]*job, len(dlg.ownItems))
 									copy(items, dlg.ownItems)
@@ -270,7 +277,10 @@ func (mw *jenkinsMainWindow) openSettings() {
 									dlg.ownItems = items
 									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
+									remote.items = substractAndFilterArray(
+										dlg.allItems,
+										dlg.ownItems,
+										dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
 									saveJobs(dlg.ownItems)
 								},
@@ -296,7 +306,10 @@ func (mw *jenkinsMainWindow) openSettings() {
 									items = append(items, own.items[lastIdx:]...)
 									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
+									remote.items = substractAndFilterArray(
+										dlg.allItems,
+										dlg.ownItems,
+										dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
 									saveJobs(dlg.ownItems)
 								},
