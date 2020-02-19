@@ -60,17 +60,17 @@ func (mw *jenkinsMainWindow) openSettings() {
 		Layout:        VBox{},
 		Children: []Widget{
 			Composite{
-				MaxSize: Size{Width: 800, Height: 500},
-				Layout:  Grid{Columns: 3},
+				Layout: Grid{Columns: 3},
 				Children: []Widget{
-					Label{Text: "URL to Jenkins View:"},
+					Label{Text: "Add URL to Jenkins View:"},
 					LineEdit{
 						Alignment: AlignHCenterVCenter,
 						AssignTo:  &dlg.URLBox,
 						Text:      jenkinsURL,
 					},
 					PushButton{
-						Text: "+",
+						Text:        "+",
+						ToolTipText: "Adds the above URL to the list",
 						OnClicked: func() {
 							newUrls := urls.items
 							url := dlg.URLBox.Text()
@@ -81,7 +81,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 							}
 						},
 					},
-					HSpacer{},
+					Label{Text: "Current Jenkins Views:"},
 					ListBox{
 						AssignTo:       &dlg.URLLb,
 						MultiSelection: true,
@@ -91,12 +91,17 @@ func (mw *jenkinsMainWindow) openSettings() {
 							dlg.saveUrls()
 							urls.PublishItemsReset()
 						},
+						OnSizeChanged: func() {
+							// Helps so that the ListBox does not have a unessecary horizontal scrollbar
+							urls.PublishItemsReset()
+						},
 					},
 					Composite{
 						Layout: VBox{},
 						Children: []Widget{
 							PushButton{
-								Text: "x",
+								Text:        "x",
+								ToolTipText: "Removes selected list entries",
 								OnClicked: func() {
 									urls.items = deleteFromStringArray(urls.items, dlg.URLLb.SelectedIndexes()...)
 									dlg.saveUrls()
@@ -104,8 +109,9 @@ func (mw *jenkinsMainWindow) openSettings() {
 								},
 							},
 							PushButton{
-								AssignTo: &dlg.reloadPB,
-								Text:     "⟳",
+								AssignTo:    &dlg.reloadPB,
+								Text:        "⟳",
+								ToolTipText: "Reloads all jobs",
 								OnClicked: func() {
 									dlg.reloadPB.SetEnabled(false)
 									go func() {
@@ -115,8 +121,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 											job := jobs.Jobs[i]
 											dlg.allItems[i] = job
 										}
-										remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 										dlg.Synchronize(func() {
+											remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 											remote.PublishItemsReset()
 											dlg.reloadPB.SetEnabled(true)
 										})
@@ -125,9 +131,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 							},
 						},
 					},
-					VSeparator{
-						ColumnSpan: 3,
-					},
+					VSeparator{ColumnSpan: 3},
 					Label{
 						Text: "Browser (leave empty for default browser):",
 					},
@@ -171,73 +175,82 @@ func (mw *jenkinsMainWindow) openSettings() {
 							settings.Put("Successive_successful", strconv.FormatBool(dlg.ssBox.Checked()))
 						},
 					},
+					VSeparator{ColumnSpan: 3},
 				},
 			},
-			VSeparator{},
 			Composite{
-				Layout: HBox{},
+				Layout: Grid{Columns: 3},
 				Children: []Widget{
+					Label{
+						Row:       1,
+						Column:    1,
+						Alignment: AlignHCenterVCenter,
+						Text:      "All Jenkins Jobs",
+					},
 					Composite{
-						Layout: VBox{},
+						Row:    2,
+						Column: 1,
+						Layout: HBox{},
 						Children: []Widget{
-							Composite{
-								Layout: HBox{},
-								Children: []Widget{
-									Label{Text: "Filter:"},
-									LineEdit{
-										AssignTo: &dlg.remoteFilter,
-										OnTextChanged: func() {
-											remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
-											remote.PublishItemsReset()
-										},
-									},
-									PushButton{
-										Text:    "x",
-										MaxSize: Size{Width: 20, Height: 10},
-										OnClicked: func() {
-											dlg.remoteFilter.SetText("")
-										},
-									},
-								},
-							},
-							ListBox{
-								AssignTo:       &dlg.remoteLb,
-								MinSize:        Size{Width: 400, Height: 400},
-								Model:          remote,
-								MultiSelection: true,
-								OnItemActivated: func() {
-									items := make([]*job, len(dlg.ownItems))
-									copy(items, dlg.ownItems)
-									idx := dlg.remoteLb.CurrentIndex()
-									found := false
-									for _, item := range dlg.ownItems {
-										if item.Name == remote.items[idx].Name &&
-											item.Jenkins == remote.items[idx].Jenkins {
-											found = true
-											break
-										}
-									}
-									if !found {
-										items = append(items, remote.items[idx])
-									}
-									dlg.ownItems = items
-									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
-									own.PublishItemsReset()
+							Label{Text: "Filter:"},
+							LineEdit{
+								AssignTo: &dlg.remoteFilter,
+								OnTextChanged: func() {
 									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 									remote.PublishItemsReset()
-									saveJobs(dlg.ownItems)
+								},
+							},
+							PushButton{
+								Text:        "x",
+								ToolTipText: "Empty filter box",
+								MaxSize:     Size{Width: 20, Height: 10},
+								OnClicked: func() {
+									dlg.remoteFilter.SetText("")
 								},
 							},
 						},
 					},
+					ListBox{
+						AssignTo:       &dlg.remoteLb,
+						Row:            3,
+						Column:         1,
+						MinSize:        Size{Width: 400, Height: 400},
+						Model:          remote,
+						MultiSelection: true,
+						OnItemActivated: func() {
+							items := make([]*job, len(dlg.ownItems))
+							copy(items, dlg.ownItems)
+							idx := dlg.remoteLb.CurrentIndex()
+							found := false
+							for _, item := range dlg.ownItems {
+								if item.Name == remote.items[idx].Name &&
+									item.Jenkins == remote.items[idx].Jenkins {
+									found = true
+									break
+								}
+							}
+							if !found {
+								items = append(items, remote.items[idx])
+							}
+							dlg.ownItems = items
+							own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
+							own.PublishItemsReset()
+							remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
+							remote.PublishItemsReset()
+							saveJobs(dlg.ownItems)
+						},
+					},
 					Composite{
+						Row:     3,
+						Column:  2,
 						Layout:  VBox{},
 						MinSize: Size{Width: 40, Height: 40},
 						MaxSize: Size{Width: 40, Height: 40},
 						Children: []Widget{
-							HSpacer{},
+							VSpacer{},
 							PushButton{
-								Text: "▶",
+								Text:        "▶",
+								ToolTipText: "Adds selected items from the left list (all jenkins jobs) to the right (monitored jobs)",
 								OnClicked: func() {
 									items := make([]*job, len(dlg.ownItems))
 									copy(items, dlg.ownItems)
@@ -263,7 +276,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 								},
 							},
 							PushButton{
-								Text: "◀",
+								Text:        "◀",
+								ToolTipText: "Removes selected items from the right list (monitored jobs)",
 								OnClicked: func() {
 									items := []*job{}
 									lastIdx := 0
@@ -287,57 +301,63 @@ func (mw *jenkinsMainWindow) openSettings() {
 									saveJobs(dlg.ownItems)
 								},
 							},
-							HSpacer{},
+							VSpacer{},
 						},
 					},
+					Label{
+						Row:       1,
+						Column:    3,
+						Alignment: AlignHCenterVCenter,
+						Text:      "Monitored Jobs",
+					},
 					Composite{
-						Layout: VBox{},
+						Row:    2,
+						Column: 3,
+						Layout: HBox{},
 						Children: []Widget{
-							Composite{
-								Layout: HBox{},
-								Children: []Widget{
-									Label{Text: "Filter:"},
-									LineEdit{
-										AssignTo: &dlg.ownFilter,
-										OnTextChanged: func() {
-											own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
-											own.PublishItemsReset()
-										},
-									},
-									PushButton{
-										Text:    "x",
-										MaxSize: Size{Width: 20, Height: 10},
-										OnClicked: func() {
-											dlg.ownFilter.SetText("")
-										},
-									},
-								},
-							},
-							ListBox{
-								AssignTo:       &dlg.ownLb,
-								MinSize:        Size{Width: 400, Height: 400},
-								Model:          own,
-								MultiSelection: true,
-								OnItemActivated: func() {
-									items := []*job{}
-									idx := dlg.ownLb.CurrentIndex()
-									items = append(items, own.items[:idx]...)
-									items = append(items, own.items[idx+1:]...)
-									var ownIdx int
-									for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
-										if dlg.ownItems[ownIdx].Name == own.items[idx].Name &&
-											dlg.ownItems[ownIdx].Jenkins == own.items[idx].Jenkins {
-											break
-										}
-									}
-									dlg.ownItems = append(dlg.ownItems[:ownIdx], dlg.ownItems[ownIdx+1:]...)
+							Label{Text: "Filter:"},
+							LineEdit{
+								AssignTo: &dlg.ownFilter,
+								OnTextChanged: func() {
 									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
-									remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
-									remote.PublishItemsReset()
-									saveJobs(dlg.ownItems)
 								},
 							},
+							PushButton{
+								Text:        "x",
+								ToolTipText: "Empty filter box",
+								MaxSize:     Size{Width: 20, Height: 10},
+								OnClicked: func() {
+									dlg.ownFilter.SetText("")
+								},
+							},
+						},
+					},
+					ListBox{
+						AssignTo:       &dlg.ownLb,
+						Row:            3,
+						Column:         3,
+						MinSize:        Size{Width: 400, Height: 400},
+						Model:          own,
+						MultiSelection: true,
+						OnItemActivated: func() {
+							items := []*job{}
+							idx := dlg.ownLb.CurrentIndex()
+							items = append(items, own.items[:idx]...)
+							items = append(items, own.items[idx+1:]...)
+							var ownIdx int
+							for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
+								if dlg.ownItems[ownIdx].Name == own.items[idx].Name &&
+									dlg.ownItems[ownIdx].Jenkins == own.items[idx].Jenkins {
+									break
+								}
+							}
+							dlg.ownItems = append(dlg.ownItems[:ownIdx], dlg.ownItems[ownIdx+1:]...)
+							own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
+							own.PublishItemsReset()
+							remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
+							remote.PublishItemsReset()
+							saveJobs(dlg.ownItems)
 						},
 					},
 				},
@@ -377,7 +397,6 @@ func (mw *jenkinsMainWindow) openSettings() {
 			job := jobs.Jobs[i]
 			dlg.allItems[i] = job
 		}
-		remote.items = dlg.allItems
 		var migration bool
 		dlg.ownItems, migration = loadJobs()
 
@@ -396,9 +415,9 @@ func (mw *jenkinsMainWindow) openSettings() {
 			}
 		}
 
-		own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
-		remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 		dlg.Synchronize(func() {
+			own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
+			remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 			remote.PublishItemsReset()
 			own.PublishItemsReset()
 		})
@@ -604,7 +623,7 @@ func getJobsURLs() []string {
 		return jenkinsURLs
 	}
 
-	return []string{"http://hudson.pdv.lan/"}
+	return []string{"http://hudson.pdv.lan/", "http://hudson.pdv.lan/view/All%20Flat"}
 }
 
 func contains(haystack []string, needle string) bool {

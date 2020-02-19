@@ -66,10 +66,10 @@ func getJobs(url string) jobs {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		log.Println(err)
+		log.Println(url, "Request failed", err)
 		items := make([]*job, 1)
 		items[0] = &job{
-			Name:    err.Error(),
+			Name:    fmt.Sprintf("%cRequest failed: %s (%s)", 9, err, url),
 			Jenkins: url,
 		}
 		jobs.Jobs = items
@@ -77,10 +77,10 @@ func getJobs(url string) jobs {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Println(url, "Antwort war nicht OK")
+		log.Println(url, "Reponse was not OK", err)
 		items := make([]*job, 1)
 		items[0] = &job{
-			Name:    fmt.Sprintf("%c%s: Antwort war nicht OK: %d", 9, url, resp.StatusCode),
+			Name:    fmt.Sprintf("%cReponse was not OK: %d (%s)", 9, resp.StatusCode, url),
 			Jenkins: url,
 		}
 		jobs.Jobs = items
@@ -92,7 +92,7 @@ func getJobs(url string) jobs {
 		log.Println(url, err)
 		items := make([]*job, 1)
 		items[0] = &job{
-			Name:    fmt.Sprintf("%c%s: Antwort konnte nicht decodiert werden: %s", 9, url, err),
+			Name:    fmt.Sprintf("%cResponse could not be decoded: %s (%s)", 9, err, url),
 			Jenkins: url,
 		}
 		jobs.Jobs = items
