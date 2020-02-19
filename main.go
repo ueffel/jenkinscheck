@@ -247,7 +247,7 @@ func (m *jobModel) Items() interface{} {
 }
 
 func (m *jobModel) initJobs(ni *walk.NotifyIcon) {
-	m.items = loadJobs()
+	m.items, _ = loadJobs()
 	m.PublishRowsReset()
 	m.updateJobs(ni)
 }
@@ -262,7 +262,8 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 		oldJob := m.items[i]
 		var newJob *job
 		for j := 0; j < len(jobs.Jobs); j++ {
-			if items[i].Name == jobs.Jobs[j].Name {
+			if items[i].Name == jobs.Jobs[j].Name &&
+				items[i].Jenkins == jobs.Jobs[j].Jenkins {
 				found = true
 				newJob = jobs.Jobs[j]
 				break
@@ -318,7 +319,7 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 	for idx, item := range m.items {
 		var foundItem *job
 		for _, item2 := range items {
-			if item.Name == item2.Name {
+			if item.Name == item2.Name && item.Jenkins == item2.Jenkins {
 				foundItem = item2
 				break
 			}

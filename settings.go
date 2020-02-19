@@ -211,7 +211,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 									idx := dlg.remoteLb.CurrentIndex()
 									found := false
 									for _, item := range dlg.ownItems {
-										if item.Name == remote.items[idx].Name {
+										if item.Name == remote.items[idx].Name &&
+											item.Jenkins == remote.items[idx].Jenkins {
 											found = true
 											break
 										}
@@ -243,7 +244,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 									for _, idx := range dlg.remoteLb.SelectedIndexes() {
 										found := false
 										for _, item := range dlg.ownItems {
-											if item.Name == remote.items[idx].Name {
+											if item.Name == remote.items[idx].Name &&
+												item.Jenkins == remote.items[idx].Jenkins {
 												found = true
 												break
 											}
@@ -268,7 +270,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 									for _, idx := range dlg.ownLb.SelectedIndexes() {
 										var ownIdx int
 										for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
-											if dlg.ownItems[ownIdx].Name == own.items[idx].Name {
+											if dlg.ownItems[ownIdx].Name == own.items[idx].Name &&
+												dlg.ownItems[ownIdx].Jenkins == own.items[idx].Jenkins {
 												break
 											}
 										}
@@ -322,7 +325,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 									items = append(items, own.items[idx+1:]...)
 									var ownIdx int
 									for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
-										if dlg.ownItems[ownIdx].Name == own.items[idx].Name {
+										if dlg.ownItems[ownIdx].Name == own.items[idx].Name &&
+											dlg.ownItems[ownIdx].Jenkins == own.items[idx].Jenkins {
 											break
 										}
 									}
@@ -374,7 +378,24 @@ func (mw *jenkinsMainWindow) openSettings() {
 			dlg.allItems[i] = job
 		}
 		remote.items = dlg.allItems
-		dlg.ownItems = loadJobs()
+		var migration bool
+		dlg.ownItems, migration = loadJobs()
+
+		// Settings migration from job names to job names + jenkins url
+		if migration {
+			for _, item := range dlg.ownItems {
+				if item.Jenkins != "" {
+					continue
+				}
+				for _, rItem := range dlg.allItems {
+					if item.Name == rItem.Name {
+						item.Jenkins = rItem.Jenkins
+						break
+					}
+				}
+			}
+		}
+
 		own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 		remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 		dlg.Synchronize(func() {
@@ -470,7 +491,7 @@ func substractAndFilterArray(allItems []*job, ownItems []*job, filter string) []
 			}
 		}
 		for _, item := range ownItems {
-			if item.Name == allItems[i].Name {
+			if item.Name == allItems[i].Name && item.Jenkins == allItems[i].Jenkins {
 				skip = true
 				break
 			}
@@ -485,26 +506,52 @@ func substractAndFilterArray(allItems []*job, ownItems []*job, filter string) []
 	return remoteItems
 }
 
-func loadJobs() []*job {
+type saveJob struct {
+	Name     string
+	Instance string
+}
+
+func loadJobs() ([]*job, bool) {
 	settings := walk.App().Settings()
 	watchedJobsStr, ok := settings.Get("Jobs")
 	if ok {
-		var watchedJobs []string
-		json.Unmarshal([]byte(watchedJobsStr), &watchedJobs)
-		ownItems := make([]*job, len(watchedJobs))
-		for i, item := range watchedJobs {
+		var watchedJobs []saveJob
+		err := json.Unmarshal([]byte(watchedJobsStr), &watchedJobs)
+		if err == nil {
+			ownItems := make([]*job, len(watchedJobs))
+			for i, item := range watchedJobs {
+				ownItems[i] = &job{
+					Name:    item.Name,
+					Jenkins: item.Instance,
+				}
+			}
+			return substractAndFilterArray(ownItems, []*job{}, ""), false
+		}
+
+		log.Println("loadJobs:", err)
+		var jobStrings []string
+		err = json.Unmarshal([]byte(watchedJobsStr), &jobStrings)
+		if err != nil {
+			log.Println("loadJobs2:", err)
+		}
+
+		ownItems := make([]*job, len(jobStrings))
+		for i, item := range jobStrings {
 			ownItems[i] = &job{Name: item}
 		}
-		return substractAndFilterArray(ownItems, []*job{}, "")
+		return substractAndFilterArray(ownItems, []*job{}, ""), true
 	}
-	return []*job{}
+	return []*job{}, false
 }
 
 func saveJobs(ownItems []*job) {
 	settings := walk.App().Settings()
-	watchedJobs := make([]string, len(ownItems))
+	watchedJobs := make([]saveJob, len(ownItems))
 	for i, item := range ownItems {
-		watchedJobs[i] = item.Name
+		watchedJobs[i] = saveJob{
+			Name:     item.Name,
+			Instance: item.Jenkins,
+		}
 	}
 	watchedJobsJSON, _ := json.Marshal(watchedJobs)
 	settings.Put("Jobs", string(watchedJobsJSON))
