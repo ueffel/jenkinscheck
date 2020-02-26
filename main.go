@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -38,7 +39,7 @@ func main() {
 	proxy := http.ProxyFromEnvironment
 	trans := &http.Transport{Proxy: proxy}
 	http.DefaultTransport = trans
-	http.DefaultClient.Timeout = 5 * time.Second
+	// http.DefaultClient.Timeout = 5 * time.Second
 
 	mainWindow := new(jenkinsMainWindow)
 	boldFont, _ := walk.NewFont("Calibri", 18, walk.FontBold)
@@ -89,6 +90,43 @@ func main() {
 				Name:             "tableView",
 				AlternatingRowBG: true,
 				ColumnsOrderable: true,
+				Model:            tableModel,
+				CustomRowHeight:  30,
+				ContextMenuItems: []MenuItem{
+					Action{
+						Text: "Open log",
+						OnTriggered: func() {
+							mainWindow.openLogView(tableModel.items[mainWindow.table.CurrentIndex()])
+						},
+						Enabled: Bind("tableView.HasCurrentItem"),
+						Visible: Bind("tableView.CurrentItem.LastBuild.Label != 0"),
+					},
+					Action{
+						Text: "Open build in browser",
+						OnTriggered: func() {
+							currentItem := tableModel.items[mainWindow.table.CurrentIndex()]
+							openInBrowser(fmt.Sprint(currentItem.URL, "/", currentItem.LastBuild.Label))
+						},
+						Enabled: Bind("tableView.HasCurrentItem"),
+						Visible: Bind("tableView.CurrentItem.LastBuild.Label != 0"),
+					},
+					Action{
+						Text: "Open console log in browser",
+						OnTriggered: func() {
+							currentItem := tableModel.items[mainWindow.table.CurrentIndex()]
+							openInBrowser(fmt.Sprint(currentItem.URL, "/", currentItem.LastBuild.Label, "/console"))
+						},
+						Enabled: Bind("tableView.HasCurrentItem"),
+						Visible: Bind("tableView.CurrentItem.LastBuild.Label != 0"),
+					},
+					Action{
+						Text: "Open project in browser",
+						OnTriggered: func() {
+							openInBrowser(tableModel.items[mainWindow.table.CurrentIndex()].URL)
+						},
+						Enabled: Bind("tableView.HasCurrentItem"),
+					},
+				},
 				Columns: []TableViewColumn{
 					{
 						Title: "Status",
@@ -120,8 +158,6 @@ func main() {
 						Width: 200,
 					},
 				},
-				Model:           tableModel,
-				CustomRowHeight: 30,
 				StyleCell: func(style *walk.CellStyle) {
 					item := tableModel.items[style.Row()]
 
@@ -176,12 +212,7 @@ func main() {
 					}
 				},
 				OnItemActivated: func() {
-					exe, ok := settings.Get("Browser")
-					if !ok || exe == "" {
-						exe = "explorer.exe" // default browser
-					}
-					cmd := exec.Command(exe, tableModel.items[mainWindow.table.CurrentIndex()].URL)
-					cmd.Start()
+					openInBrowser(tableModel.items[mainWindow.table.CurrentIndex()].URL)
 				},
 			},
 		},
@@ -356,6 +387,16 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 	} else {
 		m.PublishRowsReset()
 	}
+}
+
+func openInBrowser(url string) {
+	settings := walk.App().Settings()
+	exe, ok := settings.Get("Browser")
+	if !ok || exe == "" {
+		exe = "explorer.exe" // default browser
+	}
+	cmd := exec.Command(exe, url)
+	cmd.Start()
 }
 
 type jenkinsMainWindow struct {
