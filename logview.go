@@ -16,15 +16,22 @@ import (
 
 type logview struct {
 	*walk.Dialog
-	txt *walk.TextEdit
+	txt      *walk.TextEdit
+	okPB     *walk.PushButton
+	cancelPB *walk.PushButton
+	job      *job
 }
 
 func (mw *jenkinsMainWindow) openLogView(j *job) {
-	lv := new(logview)
+	lv := &logview{
+		job: j,
+	}
 
 	err := (Dialog{
-		AssignTo: &lv.Dialog,
-		Title:    "Console Log",
+		AssignTo:      &lv.Dialog,
+		Title:         "Console Log",
+		DefaultButton: &lv.okPB,
+		CancelButton:  &lv.okPB,
 		MinSize: Size{
 			Height: 800,
 			Width:  1200,
@@ -35,13 +42,33 @@ func (mw *jenkinsMainWindow) openLogView(j *job) {
 				AssignTo:        &lv.txt,
 				HScroll:         true,
 				VScroll:         true,
-				MaxLength:       1000000,
+				MaxLength:       500000,
 				ReadOnly:        true,
 				DoubleBuffering: true,
 
 				Font: Font{
 					Family:    "Consolas",
 					PointSize: 12,
+				},
+			},
+			Composite{
+				Layout: HBox{},
+				Children: []Widget{
+					HSpacer{},
+					PushButton{
+						AssignTo: &lv.cancelPB,
+						Text:     "Refresh",
+						OnClicked: func() {
+							go lv.LoadText()
+						},
+					},
+					PushButton{
+						AssignTo: &lv.okPB,
+						Text:     "Ok",
+						OnClicked: func() {
+							lv.Close(walk.DlgCmdOK)
+						},
+					},
 				},
 			},
 		},
@@ -51,58 +78,67 @@ func (mw *jenkinsMainWindow) openLogView(j *job) {
 		return
 	}
 
-	go func() {
-		lv.SetText("Getting build log...")
-		resp, err := http.Get(fmt.Sprint(j.URL, "/", j.LastBuild.Label, "/consoleText"))
-		if resp != nil && resp.Body != nil {
-			defer resp.Body.Close()
-		}
-		if err != nil {
-			lv.AppendText(fmt.Sprintln("Log Request failed:", err))
-			return
-		}
-		if resp.StatusCode != http.StatusOK {
-			lv.AppendText(fmt.Sprintln("Log Request not OK:", resp.StatusCode, resp.Status))
-			return
-		}
-		reader := bufio.NewReader(resp.Body)
-		var builder strings.Builder
-		lv.SetText("")
-
-		ticker := time.NewTicker(200 * time.Millisecond)
-		stopUpdating := make(chan bool)
-		defer close(stopUpdating)
-		go func(b *strings.Builder) {
-			for {
-				select {
-				case <-stopUpdating:
-					ticker.Stop()
-					lv.AppendText(b.String())
-					return
-				case <-ticker.C:
-					lv.AppendText(b.String())
-					b.Reset()
-				}
-			}
-		}(&builder)
-
-		for {
-			line, err := reader.ReadString('\n')
-			if errors.Is(err, io.EOF) {
-				break
-			} else if err != nil {
-				lv.AppendText(fmt.Sprintln("Reading Response failed:", err))
-				return
-			}
-			if len(line) > 0 {
-
-				builder.WriteString(line[:len(line)-1])
-				builder.WriteString("\r\n")
-			}
-		}
-		stopUpdating <- true
-	}()
+	go lv.LoadText()
 	lv.Run()
+}
+
+func (lv *logview) LoadText() {
+	lv.SetText("Getting build log...")
+	resp, err := http.Get(fmt.Sprint(lv.job.URL, "/", lv.job.LastBuild.Label, "/consoleText"))
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		lv.AppendText(fmt.Sprintln("Log Request failed:", err))
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		lv.AppendText(fmt.Sprintln("Log Request not OK:", resp.StatusCode, resp.Status))
+		return
+	}
+	reader := bufio.NewReader(resp.Body)
+	lv.SetText("")
+
+	ticker := time.NewTicker(200 * time.Millisecond)
+	stopUpdating := make(chan bool)
+	defer close(stopUpdating)
+	textChan := make(chan string)
+	defer close(textChan)
+	go func(txt <-chan string) {
+		var builder strings.Builder
+		for {
+			select {
+			case l := <-txt:
+				if len(l) > 0 {
+					if strings.HasSuffix(l, "\r\n") {
+						builder.WriteString(l)
+					} else {
+						builder.WriteString(l[:len(l)-1])
+						builder.WriteString("\r\n")
+					}
+				}
+			case <-stopUpdating:
+				ticker.Stop()
+				lv.AppendText(builder.String())
+				return
+			case <-ticker.C:
+				lv.AppendText(builder.String())
+				builder.Reset()
+			}
+		}
+	}(textChan)
+
+	for {
+		line, err := reader.ReadString('\n')
+		if errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			lv.AppendText(fmt.Sprintln("Reading Response failed:", err))
+			return
+		}
+		textChan <- line
+	}
+	stopUpdating <- true
 }
 
 func (lv *logview) SetText(txt string) {
@@ -127,7 +163,8 @@ func (lv *logview) AppendText(txt string) {
 				lv.txt.SetText(lv.txt.Text()[newLen:])
 				lv.txt.AppendText(txt)
 			}
+		} else {
+			lv.txt.AppendText(txt)
 		}
-
 	})
 }

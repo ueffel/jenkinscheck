@@ -212,7 +212,16 @@ func main() {
 					}
 				},
 				OnItemActivated: func() {
-					openInBrowser(tableModel.items[mainWindow.table.CurrentIndex()].URL)
+					idx := mainWindow.table.CurrentIndex()
+					if idx < 0 {
+						return
+					}
+					currentItem := tableModel.items[idx]
+					if currentItem.LastBuild.Label != 0 {
+						mainWindow.openLogView(currentItem)
+					} else {
+						openInBrowser(currentItem.URL)
+					}
 				},
 			},
 		},
