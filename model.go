@@ -86,6 +86,11 @@ func getJobs(url string) jobs {
 		jobs.Jobs = items
 		return jobs
 	}
+
+	time.AfterFunc(10*time.Second, func() {
+		resp.Body.Close()
+	})
+
 	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&jobs)
 	if err != nil {

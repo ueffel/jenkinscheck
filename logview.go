@@ -96,13 +96,16 @@ func (lv *logview) LoadText() {
 		lv.AppendText(fmt.Sprintln("Log Request not OK:", resp.StatusCode, resp.Status))
 		return
 	}
+	timeout := time.AfterFunc(5*time.Second, func() {
+		resp.Body.Close()
+	})
 	reader := bufio.NewReader(resp.Body)
 	lv.SetText("")
 
 	ticker := time.NewTicker(200 * time.Millisecond)
 	stopUpdating := make(chan bool)
 	defer close(stopUpdating)
-	textChan := make(chan string)
+	textChan := make(chan string, 10)
 	defer close(textChan)
 	go func(txt <-chan string) {
 		var builder strings.Builder
@@ -129,6 +132,7 @@ func (lv *logview) LoadText() {
 	}(textChan)
 
 	for {
+		timeout.Reset(1 * time.Second)
 		line, err := reader.ReadString('\n')
 		if errors.Is(err, io.EOF) {
 			break

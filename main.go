@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -37,9 +38,19 @@ func main() {
 	multiLogger := io.MultiWriter(os.Stdout, logger)
 	log.SetOutput(multiLogger)
 	proxy := http.ProxyFromEnvironment
-	trans := &http.Transport{Proxy: proxy}
+	trans := &http.Transport{
+		Proxy:               proxy,
+		TLSHandshakeTimeout: 5 * time.Second,
+		DialContext: (&net.Dialer{
+			Timeout:   3 * time.Second,
+			KeepAlive: 2 * time.Minute,
+		}).DialContext,
+
+		ExpectContinueTimeout: 5 * time.Second,
+		ResponseHeaderTimeout: 5 * time.Second,
+	}
 	http.DefaultTransport = trans
-	// http.DefaultClient.Timeout = 5 * time.Second
+	http.DefaultClient.Timeout = 3 * time.Minute
 
 	mainWindow := new(jenkinsMainWindow)
 	boldFont, _ := walk.NewFont("Calibri", 18, walk.FontBold)
