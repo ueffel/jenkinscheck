@@ -116,12 +116,13 @@ func (mw *jenkinsMainWindow) openSettings() {
 									dlg.reloadPB.SetEnabled(false)
 									go func() {
 										jobs := getJobsFromMultiple(urls.items)
-										dlg.allItems = make([]*job, len(jobs.Jobs))
+										allItems := make([]*job, len(jobs.Jobs))
 										for i := 0; i < len(jobs.Jobs); i++ {
 											job := jobs.Jobs[i]
-											dlg.allItems[i] = job
+											allItems[i] = job
 										}
 										dlg.Synchronize(func() {
+											dlg.allItems = allItems
 											remote.items = substractAndFilterArray(
 												dlg.allItems,
 												dlg.ownItems,
@@ -405,21 +406,20 @@ func (mw *jenkinsMainWindow) openSettings() {
 
 	go func() {
 		jobs := getJobsFromMultiple(jenkinsURLs)
-		dlg.allItems = make([]*job, len(jobs.Jobs))
+		allItems := make([]*job, len(jobs.Jobs))
 		for i := 0; i < len(jobs.Jobs); i++ {
 			job := jobs.Jobs[i]
-			dlg.allItems[i] = job
+			allItems[i] = job
 		}
-		var migration bool
-		dlg.ownItems, migration = loadJobs()
+		ownItems, migration := loadJobs()
 
 		// Settings migration from job names to job names + jenkins url
 		if migration {
-			for _, item := range dlg.ownItems {
+			for _, item := range ownItems {
 				if item.Jenkins != "" {
 					continue
 				}
-				for _, rItem := range dlg.allItems {
+				for _, rItem := range allItems {
 					if item.Name == rItem.Name {
 						item.Jenkins = rItem.Jenkins
 						break
@@ -429,6 +429,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 		}
 
 		dlg.Synchronize(func() {
+			dlg.ownItems = ownItems
+			dlg.allItems = allItems
 			own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 			remote.items = substractAndFilterArray(dlg.allItems, dlg.ownItems, dlg.remoteFilter.Text())
 			remote.PublishItemsReset()
