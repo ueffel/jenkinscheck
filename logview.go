@@ -104,15 +104,17 @@ func (lv *logview) LoadText() {
 
 	stopUpdating := make(chan bool)
 	defer close(stopUpdating)
-	textChan := make(chan string, 10)
+	textChan := make(chan string, 50)
 	defer close(textChan)
 	go func(txt <-chan string) {
 		ticker := time.NewTicker(200 * time.Millisecond)
 		var builder strings.Builder
+		var l string
+		var txtOpen bool
 		for {
 			select {
-			case l := <-txt:
-				if len(l) > 0 {
+			case l, txtOpen = <-txt:
+				if txtOpen && len(l) > 0 {
 					if strings.HasSuffix(l, "\r\n") {
 						builder.WriteString(l)
 					} else {
@@ -121,24 +123,31 @@ func (lv *logview) LoadText() {
 					}
 				}
 			case <-stopUpdating:
+				// wait until all text is printed before exiting
+				if txtOpen || builder.Len() > 0 {
+					continue
+				}
 				ticker.Stop()
-				lv.AppendText(builder.String())
 				return
 			case <-ticker.C:
-				lv.AppendText(builder.String())
-				builder.Reset()
+				if builder.Len() > 0 {
+					lv.AppendText(builder.String())
+					builder.Reset()
+				}
 			}
 		}
 	}(textChan)
 
 	for {
-		timeout.Reset(1 * time.Second)
+		timeout.Reset(2 * time.Second)
 		line, err := reader.ReadString('\n')
 		if errors.Is(err, io.EOF) {
-			break
+			if len(line) == 0 {
+				break
+			}
 		} else if err != nil {
 			lv.AppendText(fmt.Sprintln("Reading Response failed:", err))
-			return
+			break
 		}
 		textChan <- line
 	}
@@ -159,6 +168,8 @@ func (lv *logview) SetText(txt string) {
 func (lv *logview) AppendText(txt string) {
 	lv.Synchronize(func() {
 		newLen := len(txt)
+		// zero bytes are evil
+		txt = strings.ReplaceAll(txt, "\x00", " ")
 		if lv.txt.TextLength()+newLen >= lv.txt.MaxLength() {
 			if newLen > lv.txt.MaxLength() {
 				lv.txt.SetText("")

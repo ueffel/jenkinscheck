@@ -39,17 +39,22 @@ func main() {
 	log.SetOutput(multiLogger)
 	proxy := http.ProxyFromEnvironment
 	trans := &http.Transport{
-		Proxy:               proxy,
+		Proxy: proxy,
+		// Cares about the setup timeout for upgrading the unencrypted connection to an encryped one HTTPS
 		TLSHandshakeTimeout: 5 * time.Second,
+		// Defines the setup timeout for an unencrypted HTTP connection
 		DialContext: (&net.Dialer{
 			Timeout:   3 * time.Second,
 			KeepAlive: 2 * time.Minute,
 		}).DialContext,
 
+		// This configures how long you want to wait after you send your payload for the beginning of an answer (in form of the beginning of the header)
 		ExpectContinueTimeout: 5 * time.Second,
+		// And with this parameter you set how long the complete transfer of the header is allowed to last
 		ResponseHeaderTimeout: 5 * time.Second,
 	}
 	http.DefaultTransport = trans
+	// Prevent endless redirects
 	http.DefaultClient.Timeout = 3 * time.Minute
 
 	mainWindow := new(jenkinsMainWindow)
