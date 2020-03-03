@@ -35,7 +35,7 @@ func main() {
 		log.Fatalf("error opening file: %v", err)
 	}
 	defer logger.Close()
-	multiLogger := io.MultiWriter(os.Stdout, logger)
+	multiLogger := io.MultiWriter(logger, os.Stdout)
 	log.SetOutput(multiLogger)
 	proxy := http.ProxyFromEnvironment
 	trans := &http.Transport{

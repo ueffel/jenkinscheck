@@ -102,12 +102,12 @@ func (lv *logview) LoadText() {
 	reader := bufio.NewReader(resp.Body)
 	lv.SetText("")
 
-	ticker := time.NewTicker(200 * time.Millisecond)
 	stopUpdating := make(chan bool)
 	defer close(stopUpdating)
 	textChan := make(chan string, 10)
 	defer close(textChan)
 	go func(txt <-chan string) {
+		ticker := time.NewTicker(200 * time.Millisecond)
 		var builder strings.Builder
 		for {
 			select {
