@@ -1,7 +1,7 @@
 
 build:
   tags:
-    - GO1.13
+    - GO1.14
   script:
     - go generate -v
     - go build -v -ldflags="-H windowsgui"
