@@ -203,6 +203,12 @@ func main() {
 								canvas.GradientFillRectangle(walk.RGB(200, 0, 0), walk.RGB(100, 0, 0), walk.Horizontal, style.Bounds())
 								canvas.DrawText("👎", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
+						case "ABORTED":
+							canvas := style.Canvas()
+							if canvas != nil {
+								canvas.GradientFillRectangle(walk.RGB(200, 200, 200), walk.RGB(100, 100, 100), walk.Horizontal, style.Bounds())
+								canvas.DrawText("❌", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
+							}
 						case "":
 							fallthrough
 						default:
