@@ -66,7 +66,7 @@ func getJobs(url string) jobs {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		log.Println(url, "Request failed", err)
+		log.Println(url, "Request failed:", err)
 		items := make([]*job, 1)
 		items[0] = &job{
 			Name:    fmt.Sprintf("%cRequest failed: %s (%s)", 9, err, url),
@@ -77,7 +77,7 @@ func getJobs(url string) jobs {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Println(url, "Reponse was not OK", err)
+		log.Println(url, "Reponse was not OK:", resp.StatusCode)
 		items := make([]*job, 1)
 		items[0] = &job{
 			Name:    fmt.Sprintf("%cReponse was not OK: %d (%s)", 9, resp.StatusCode, url),

@@ -638,7 +638,7 @@ func getJobsURLs() []string {
 		return jenkinsURLs
 	}
 
-	return []string{"http://hudson.pdv.lan/", "http://hudson.pdv.lan/view/All%20Flat"}
+	return []string{"http://hudson.pdv.lan/", "http://hudson.pdv.lan:8090/view/All%20Flat"}
 }
 
 func contains(haystack []string, needle string) bool {
