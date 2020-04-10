@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -20,7 +21,14 @@ import (
 	"github.com/lxn/win"
 )
 
+func handlePanic() {
+	if r := recover(); r != nil {
+		log.Fatalf("PANIC: %s\n%s", r, debug.Stack())
+	}
+}
+
 func main() {
+	defer handlePanic()
 	appName := "JenkinsCheck"
 	company := "PDV GmbH"
 	localAppData, _ := walk.LocalAppDataPath()
@@ -282,6 +290,7 @@ func main() {
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	quit := make(chan bool, 1)
 	go func() {
+		defer handlePanic()
 		for {
 			select {
 			case <-ticker.C:
@@ -314,6 +323,7 @@ func (m *jobModel) Items() interface{} {
 }
 
 func (m *jobModel) initJobs(ni *walk.NotifyIcon) {
+	defer handlePanic()
 	m.items, _ = loadJobs()
 	m.PublishRowsReset()
 	m.updateJobs(ni)

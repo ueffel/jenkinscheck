@@ -31,6 +31,7 @@ type settingsWindow struct {
 }
 
 func (mw *jenkinsMainWindow) openSettings() {
+	defer handlePanic()
 	settings := walk.App().Settings()
 
 	dlg := new(settingsWindow)
@@ -70,7 +71,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 					},
 					PushButton{
 						Text:        "+",
-						ToolTipText: "Adds the above URL to the list",
+						ToolTipText: "Add the above URL to the list",
 						OnClicked: func() {
 							newUrls := urls.items
 							url := dlg.URLBox.Text()
@@ -101,7 +102,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 						Children: []Widget{
 							PushButton{
 								Text:        "x",
-								ToolTipText: "Removes selected list entries",
+								ToolTipText: "Remove selected Jenkins views",
 								OnClicked: func() {
 									urls.items = deleteFromStringArray(urls.items, dlg.URLLb.SelectedIndexes()...)
 									dlg.saveUrls()
@@ -111,10 +112,11 @@ func (mw *jenkinsMainWindow) openSettings() {
 							PushButton{
 								AssignTo:    &dlg.reloadPB,
 								Text:        "⟳",
-								ToolTipText: "Reloads all jobs",
+								ToolTipText: "Reload all jobs",
 								OnClicked: func() {
 									dlg.reloadPB.SetEnabled(false)
 									go func() {
+										defer handlePanic()
 										jobs := getJobsFromMultiple(urls.items)
 										allItems := make([]*job, len(jobs.Jobs))
 										for i := 0; i < len(jobs.Jobs); i++ {
@@ -122,6 +124,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 											allItems[i] = job
 										}
 										dlg.Synchronize(func() {
+											defer handlePanic()
 											dlg.allItems = allItems
 											remote.items = substractAndFilterArray(
 												dlg.allItems,
@@ -257,7 +260,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 							VSpacer{},
 							PushButton{
 								Text: "▶",
-								ToolTipText: "Adds selected items from the left list (all jenkins" +
+								ToolTipText: "Add selected items from the left list (all jenkins" +
 									" jobs) to the right (monitored jobs)",
 								OnClicked: func() {
 									items := make([]*job, len(dlg.ownItems))
@@ -288,7 +291,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 							},
 							PushButton{
 								Text:        "◀",
-								ToolTipText: "Removes selected items from the right list (monitored jobs)",
+								ToolTipText: "Remove selected items from the right list (monitored jobs)",
 								OnClicked: func() {
 									items := []*job{}
 									lastIdx := 0
@@ -405,6 +408,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 	}
 
 	go func() {
+		defer handlePanic()
 		jobs := getJobsFromMultiple(jenkinsURLs)
 		allItems := make([]*job, len(jobs.Jobs))
 		for i := 0; i < len(jobs.Jobs); i++ {
@@ -429,6 +433,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 		}
 
 		dlg.Synchronize(func() {
+			defer handlePanic()
 			dlg.ownItems = ownItems
 			dlg.allItems = allItems
 			own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
