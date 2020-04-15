@@ -54,7 +54,6 @@ func (mw *jenkinsMainWindow) openLogView(j *job) {
 				MaxLength:       500000,
 				ReadOnly:        true,
 				DoubleBuffering: true,
-				// Background:      SolidColorBrush{Color: walk.RGB(255, 255, 255)},
 				Font: Font{
 					Family:    "Consolas",
 					PointSize: 12,
