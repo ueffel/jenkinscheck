@@ -93,7 +93,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 							urls.PublishItemsReset()
 						},
 						OnSizeChanged: func() {
-							// Helps so that the ListBox does not have a unessecary horizontal scrollbar
+							// Helps so that the ListBox does not have a unnecessary horizontal scrollbar
 							urls.PublishItemsReset()
 						},
 					},

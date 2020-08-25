@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chzyer/readline/runes"
 	"github.com/lxn/walk"
@@ -61,6 +62,10 @@ func (mw *jenkinsMainWindow) openLogView(j *job) {
 				OnKeyPress: func(key walk.Key) {
 					if key == walk.KeyF3 {
 						lv.searchText(!walk.ShiftDown())
+					}
+					if walk.ControlDown() && key == walk.KeyF {
+						lv.searchBox.SetFocus()
+						lv.searchBox.SetTextSelection(0, utf8.RuneCountInString(lv.searchBox.Text()))
 					}
 				},
 			},

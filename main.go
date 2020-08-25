@@ -129,7 +129,7 @@ func main() {
 						Text: "Open build in browser",
 						OnTriggered: func() {
 							currentItem := tableModel.items[mainWindow.table.CurrentIndex()]
-							openInBrowser(fmt.Sprint(currentItem.URL, "/", currentItem.LastBuild.Label))
+							openInBrowser(path.Clean(fmt.Sprint(currentItem.URL, "/", currentItem.LastBuild.Label)))
 						},
 						Enabled: Bind("tableView.HasCurrentItem"),
 						Visible: Bind("tableView.CurrentItem.LastBuild.Label != 0"),
@@ -138,7 +138,7 @@ func main() {
 						Text: "Open console log in browser",
 						OnTriggered: func() {
 							currentItem := tableModel.items[mainWindow.table.CurrentIndex()]
-							openInBrowser(fmt.Sprint(currentItem.URL, "/", currentItem.LastBuild.Label, "/console"))
+							openInBrowser(path.Clean(fmt.Sprint(currentItem.URL, "/", currentItem.LastBuild.Label, "/console")))
 						},
 						Enabled: Bind("tableView.HasCurrentItem"),
 						Visible: Bind("tableView.CurrentItem.LastBuild.Label != 0"),
@@ -146,7 +146,7 @@ func main() {
 					Action{
 						Text: "Open project in browser",
 						OnTriggered: func() {
-							openInBrowser(tableModel.items[mainWindow.table.CurrentIndex()].URL)
+							openInBrowser(path.Clean(tableModel.items[mainWindow.table.CurrentIndex()].URL))
 						},
 						Enabled: Bind("tableView.HasCurrentItem"),
 					},
