@@ -92,10 +92,6 @@ func (mw *jenkinsMainWindow) openSettings() {
 							dlg.saveUrls()
 							urls.PublishItemsReset()
 						},
-						OnSizeChanged: func() {
-							// Helps so that the ListBox does not have a unnecessary horizontal scrollbar
-							urls.PublishItemsReset()
-						},
 					},
 					Composite{
 						Layout: VBox{},
