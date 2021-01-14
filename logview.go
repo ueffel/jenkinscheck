@@ -153,6 +153,11 @@ func (lv *logview) LoadText() {
 	timeout := time.AfterFunc(5*time.Second, func() {
 		resp.Body.Close()
 	})
+	defer func() {
+		if !timeout.Stop() {
+			<-timeout.C
+		}
+	}()
 	reader := bufio.NewReader(resp.Body)
 	lv.SetText("")
 
@@ -163,6 +168,7 @@ func (lv *logview) LoadText() {
 	go func(txt <-chan string) {
 		defer handlePanic()
 		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
 		var builder strings.Builder
 		var l string
 		var txtOpen bool

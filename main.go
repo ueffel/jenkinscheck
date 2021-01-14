@@ -368,6 +368,8 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 						ni.ShowWarning(appName, newJob.Name+" has become unstable.")
 					case "FAILURE":
 						ni.ShowError(appName, newJob.Name+" failed.")
+					case "ABORTED":
+						ni.ShowWarning(appName, newJob.Name+" was aborted.")
 					}
 				case "UNSTABLE":
 					switch newStatus {
@@ -377,6 +379,8 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 						ni.ShowWarning(appName, newJob.Name+" is still unstable.")
 					case "FAILURE":
 						ni.ShowError(appName, newJob.Name+" failed.")
+					case "ABORTED":
+						ni.ShowWarning(appName, newJob.Name+" was aborted.")
 					}
 				case "FAILURE":
 					switch newStatus {
@@ -386,6 +390,19 @@ func (m *jobModel) updateJobs(ni *walk.NotifyIcon) {
 						ni.ShowWarning(appName, newJob.Name+" is at least unstable now.")
 					case "FAILURE":
 						ni.ShowError(appName, newJob.Name+" still failing.")
+					case "ABORTED":
+						ni.ShowWarning(appName, newJob.Name+" was aborted.")
+					}
+				case "ABORTED":
+					switch newStatus {
+					case "SUCCESS":
+						ni.ShowInfo(appName, newJob.Name+" is successful again.")
+					case "UNSTABLE":
+						ni.ShowWarning(appName, newJob.Name+" is at least unstable now.")
+					case "FAILURE":
+						ni.ShowError(appName, newJob.Name+" failed.")
+					case "ABORTED":
+						ni.ShowWarning(appName, newJob.Name+" was aborted.")
 					}
 				}
 			}
