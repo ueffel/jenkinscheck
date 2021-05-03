@@ -1,5 +1,4 @@
 ﻿*.exe
 .vscode
 *.bak
-go.sum
 rsrc.syso

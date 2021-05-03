@@ -13,7 +13,7 @@ import (
 
 	"github.com/chzyer/readline/runes"
 	"github.com/lxn/walk"
-	. "github.com/lxn/walk/declarative"
+	"github.com/lxn/walk/declarative"
 	"github.com/lxn/win"
 )
 
@@ -37,25 +37,25 @@ func (mw *jenkinsMainWindow) openLogView(j *job) {
 		searchPos: 0,
 	}
 
-	err := (Dialog{
+	err := (declarative.Dialog{
 		AssignTo:      &lv.Dialog,
 		Title:         "Console Log",
 		DefaultButton: &lv.searchPB,
 		CancelButton:  &lv.closePB,
-		MinSize: Size{
+		MinSize: declarative.Size{
 			Height: 800,
 			Width:  1200,
 		},
-		Layout: VBox{MarginsZero: true},
-		Children: []Widget{
-			TextEdit{
+		Layout: declarative.VBox{MarginsZero: true},
+		Children: []declarative.Widget{
+			declarative.TextEdit{
 				AssignTo:        &lv.txt,
 				HScroll:         true,
 				VScroll:         true,
 				MaxLength:       500000,
 				ReadOnly:        true,
 				DoubleBuffering: true,
-				Font: Font{
+				Font: declarative.Font{
 					Family:    "Consolas",
 					PointSize: 12,
 				},
@@ -69,44 +69,44 @@ func (mw *jenkinsMainWindow) openLogView(j *job) {
 					}
 				},
 			},
-			Composite{
-				Layout: HBox{},
-				Children: []Widget{
-					LineEdit{
+			declarative.Composite{
+				Layout: declarative.HBox{},
+				Children: []declarative.Widget{
+					declarative.LineEdit{
 						AssignTo:    &lv.searchBox,
 						ToolTipText: "Search",
-						MaxSize:     Size{Width: 300},
+						MaxSize:     declarative.Size{Width: 300},
 					},
-					PushButton{
+					declarative.PushButton{
 						AssignTo:    &lv.searchPB,
 						Text:        "🔍",
 						ToolTipText: "Search from the beginning (Enter)",
-						MaxSize:     Size{Width: 20},
+						MaxSize:     declarative.Size{Width: 20},
 						OnClicked: func() {
 							lv.searchPos = -1
 							lv.searchText(true)
 						},
 					},
-					PushButton{
+					declarative.PushButton{
 						AssignTo:    &lv.prevPB,
 						Text:        "<",
 						ToolTipText: "Previous match (Shift+F3)",
-						MaxSize:     Size{Width: 20},
+						MaxSize:     declarative.Size{Width: 20},
 						OnClicked: func() {
 							lv.searchText(false)
 						},
 					},
-					PushButton{
+					declarative.PushButton{
 						AssignTo:    &lv.nextPB,
 						Text:        ">",
 						ToolTipText: "Next match (F3)",
-						MaxSize:     Size{Width: 20},
+						MaxSize:     declarative.Size{Width: 20},
 						OnClicked: func() {
 							lv.searchText(true)
 						},
 					},
-					HSpacer{},
-					PushButton{
+					declarative.HSpacer{},
+					declarative.PushButton{
 						AssignTo:    &lv.refreshPB,
 						Text:        "Refresh",
 						ToolTipText: "Redownload the console log",
@@ -114,7 +114,7 @@ func (mw *jenkinsMainWindow) openLogView(j *job) {
 							go lv.LoadText()
 						},
 					},
-					PushButton{
+					declarative.PushButton{
 						AssignTo:    &lv.closePB,
 						Text:        "Ok",
 						ToolTipText: "Close the log window (ESC)",

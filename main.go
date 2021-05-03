@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/lxn/walk"
-	. "github.com/lxn/walk/declarative"
+	"github.com/lxn/walk/declarative"
 	"github.com/lxn/win"
 )
 
@@ -85,73 +85,74 @@ func main() {
 
 	tableModel := new(jobModel)
 
-	MainWindow{
+	declarative.MainWindow{
 		AssignTo: &mainWindow.MainWindow,
 		Name:     "MainWindow",
 		Icon:     icon,
 		Title:    appName,
-		Size:     Size{Width: 900, Height: 800},
-		Font:     Font{Family: "Calibri", PointSize: 12},
-		MenuItems: []MenuItem{
-			Menu{
+		Size:     declarative.Size{Width: 900, Height: 800},
+		Font:     declarative.Font{Family: "Calibri", PointSize: 12},
+		MenuItems: []declarative.MenuItem{
+			declarative.Menu{
 				Text: "&Settings",
-				Items: []MenuItem{
-					Action{
+				Items: []declarative.MenuItem{
+					declarative.Action{
 						Text:        "Settings",
 						OnTriggered: mainWindow.openSettings,
 					},
-					Action{
+					declarative.Action{
 						Text:        "E&xit",
 						OnTriggered: doExit,
 					},
 				},
 			},
 		},
-		Layout: HBox{},
-		Children: []Widget{
-			TableView{
+		Layout: declarative.HBox{},
+		Children: []declarative.Widget{
+			declarative.TableView{
 				AssignTo:         &mainWindow.table,
 				Name:             "tableView",
 				AlternatingRowBG: true,
 				ColumnsOrderable: true,
 				Model:            tableModel,
 				CustomRowHeight:  30,
-				ContextMenuItems: []MenuItem{
-					Action{
+				ContextMenuItems: []declarative.MenuItem{
+					declarative.Action{
 						Text: "Open log",
 						OnTriggered: func() {
 							mainWindow.openLogView(tableModel.items[mainWindow.table.CurrentIndex()])
 						},
-						Enabled: Bind("tableView.HasCurrentItem"),
-						Visible: Bind("tableView.CurrentItem.LastBuild.Label != 0"),
+						Enabled: declarative.Bind("tableView.HasCurrentItem"),
+						Visible: declarative.Bind("tableView.CurrentItem.LastBuild.Label != 0"),
 					},
-					Action{
+					declarative.Action{
 						Text: "Open build in browser",
 						OnTriggered: func() {
 							currentItem := tableModel.items[mainWindow.table.CurrentIndex()]
 							openInBrowser(path.Clean(fmt.Sprint(currentItem.URL, "/", currentItem.LastBuild.Label)))
 						},
-						Enabled: Bind("tableView.HasCurrentItem"),
-						Visible: Bind("tableView.CurrentItem.LastBuild.Label != 0"),
+						Enabled: declarative.Bind("tableView.HasCurrentItem"),
+						Visible: declarative.Bind("tableView.CurrentItem.LastBuild.Label != 0"),
 					},
-					Action{
+					declarative.Action{
 						Text: "Open console log in browser",
 						OnTriggered: func() {
 							currentItem := tableModel.items[mainWindow.table.CurrentIndex()]
 							openInBrowser(path.Clean(fmt.Sprint(currentItem.URL, "/", currentItem.LastBuild.Label, "/console")))
 						},
-						Enabled: Bind("tableView.HasCurrentItem"),
-						Visible: Bind("tableView.CurrentItem.LastBuild.Label != 0"),
+						Enabled: declarative.Bind("tableView.HasCurrentItem"),
+						Visible: declarative.Bind("tableView.CurrentItem.LastBuild.Label != 0"),
 					},
-					Action{
+					declarative.Action{
 						Text: "Open project in browser",
 						OnTriggered: func() {
 							openInBrowser(path.Clean(tableModel.items[mainWindow.table.CurrentIndex()].URL))
 						},
-						Enabled: Bind("tableView.HasCurrentItem"),
+						Enabled: declarative.Bind("tableView.HasCurrentItem"),
+						Visible: declarative.Bind("tableView.CurrentItem.URL != \"\""),
 					},
 				},
-				Columns: []TableViewColumn{
+				Columns: []declarative.TableViewColumn{
 					{
 						Title: "Status",
 						Name:  "LastCompletedBuild.Result",
@@ -196,45 +197,45 @@ func main() {
 						case "SUCCESS":
 							canvas := style.Canvas()
 							if canvas != nil {
-								canvas.GradientFillRectangle(walk.RGB(100, 200, 100), walk.RGB(200, 250, 200), walk.Horizontal, style.Bounds())
-								canvas.DrawText("👍", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
+								canvas.GradientFillRectanglePixels(walk.RGB(100, 200, 100), walk.RGB(200, 250, 200), walk.Horizontal, style.Bounds())
+								canvas.DrawTextPixels("👍", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
 						case "UNSTABLE":
 							canvas := style.Canvas()
 							if canvas != nil {
-								canvas.GradientFillRectangle(walk.RGB(150, 150, 0), walk.RGB(250, 250, 0), walk.Horizontal, style.Bounds())
-								canvas.DrawText("👀", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
+								canvas.GradientFillRectanglePixels(walk.RGB(150, 150, 0), walk.RGB(250, 250, 0), walk.Horizontal, style.Bounds())
+								canvas.DrawTextPixels("👀", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
 						case "FAILURE":
 							canvas := style.Canvas()
 							if canvas != nil {
-								canvas.GradientFillRectangle(walk.RGB(200, 0, 0), walk.RGB(100, 0, 0), walk.Horizontal, style.Bounds())
-								canvas.DrawText("👎", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
+								canvas.GradientFillRectanglePixels(walk.RGB(200, 0, 0), walk.RGB(100, 0, 0), walk.Horizontal, style.Bounds())
+								canvas.DrawTextPixels("👎", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
 						case "ABORTED":
 							canvas := style.Canvas()
 							if canvas != nil {
-								canvas.GradientFillRectangle(walk.RGB(200, 200, 200), walk.RGB(100, 100, 100), walk.Horizontal, style.Bounds())
-								canvas.DrawText("❌", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
+								canvas.GradientFillRectanglePixels(walk.RGB(200, 200, 200), walk.RGB(100, 100, 100), walk.Horizontal, style.Bounds())
+								canvas.DrawTextPixels("❌", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
 						case "":
 							fallthrough
 						default:
 							canvas := style.Canvas()
 							if canvas != nil {
-								canvas.FillRectangle(solidWhite, style.Bounds())
-								canvas.DrawText("🤷‍", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
+								canvas.FillRectanglePixels(solidWhite, style.Bounds())
+								canvas.DrawTextPixels("🤷‍♀️", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
 						}
 					case "Activity":
 						canvas := style.Canvas()
 						if !item.LastBuild.Building {
 							if canvas != nil {
-								canvas.DrawText("💤", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
+								canvas.DrawTextPixels("💤", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
 						} else {
 							if canvas != nil {
-								canvas.DrawText("🔨", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
+								canvas.DrawTextPixels("🔨", boldFont, walk.RGB(0, 0, 0), style.Bounds(), 127)
 							}
 						}
 					default:
@@ -292,11 +293,15 @@ func main() {
 	go func() {
 		defer handlePanic()
 		for {
+			stop := false
 			select {
 			case <-ticker.C:
 				tableModel.updateJobs(ni)
 			case <-quit:
 				ticker.Stop()
+				stop = true
+			}
+			if stop {
 				break
 			}
 		}

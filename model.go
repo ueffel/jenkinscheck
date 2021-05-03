@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -63,7 +64,10 @@ func getJobs(url string) jobs {
 		"lastBuild[number,timestamp,result,building],lastCompletedBuild[number,timestamp,result,building]]")
 	var jobs jobs
 	if resp != nil && resp.Body != nil {
-		defer resp.Body.Close()
+		defer func() {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}()
 	}
 	if err != nil {
 		log.Println(url, "Request failed:", err)

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/lxn/walk"
-	. "github.com/lxn/walk/declarative"
+	"github.com/lxn/walk/declarative"
 )
 
 type settingsWindow struct {
@@ -52,24 +52,24 @@ func (mw *jenkinsMainWindow) openSettings() {
 	ssBuilds := getSuccessiveSuccessful()
 	interval := getInterval()
 
-	err := Dialog{
+	err := declarative.Dialog{
 		AssignTo:      &dlg.Dialog,
 		Title:         "Settings",
 		Icon:          mw.Icon(),
 		DefaultButton: &dlg.okPB,
 		CancelButton:  &dlg.cancelPB,
-		Layout:        VBox{},
-		Children: []Widget{
-			Composite{
-				Layout: Grid{Columns: 3},
-				Children: []Widget{
-					Label{Text: "Add URL to Jenkins View:"},
-					LineEdit{
-						Alignment: AlignHCenterVCenter,
+		Layout:        declarative.VBox{},
+		Children: []declarative.Widget{
+			declarative.Composite{
+				Layout: declarative.Grid{Columns: 3},
+				Children: []declarative.Widget{
+					declarative.Label{Text: "Add URL to Jenkins View:"},
+					declarative.LineEdit{
+						Alignment: declarative.AlignHCenterVCenter,
 						AssignTo:  &dlg.URLBox,
 						Text:      jenkinsURL,
 					},
-					PushButton{
+					declarative.PushButton{
 						Text:        "+",
 						ToolTipText: "Add the above URL to the list",
 						OnClicked: func() {
@@ -82,8 +82,8 @@ func (mw *jenkinsMainWindow) openSettings() {
 							}
 						},
 					},
-					Label{Text: "Current Jenkins Views:"},
-					ListBox{
+					declarative.Label{Text: "Current Jenkins Views:"},
+					declarative.ListBox{
 						AssignTo:       &dlg.URLLb,
 						MultiSelection: true,
 						Model:          urls,
@@ -93,10 +93,10 @@ func (mw *jenkinsMainWindow) openSettings() {
 							urls.PublishItemsReset()
 						},
 					},
-					Composite{
-						Layout: VBox{},
-						Children: []Widget{
-							PushButton{
+					declarative.Composite{
+						Layout: declarative.VBox{},
+						Children: []declarative.Widget{
+							declarative.PushButton{
 								Text:        "x",
 								ToolTipText: "Remove selected Jenkins views",
 								OnClicked: func() {
@@ -105,7 +105,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 									urls.PublishItemsReset()
 								},
 							},
-							PushButton{
+							declarative.PushButton{
 								AssignTo:    &dlg.reloadPB,
 								Text:        "⟳",
 								ToolTipText: "Reload all jobs",
@@ -134,18 +134,18 @@ func (mw *jenkinsMainWindow) openSettings() {
 							},
 						},
 					},
-					VSeparator{ColumnSpan: 3},
-					Label{
+					declarative.VSeparator{ColumnSpan: 3},
+					declarative.Label{
 						Text: "Browser (leave empty for default browser):",
 					},
-					LineEdit{
+					declarative.LineEdit{
 						AssignTo: &dlg.browserBox,
 						Text:     browser,
 						OnTextChanged: func() {
 							settings.Put("Browser", dlg.browserBox.Text())
 						},
 					},
-					PushButton{
+					declarative.PushButton{
 						Text: "Browse",
 						OnClicked: func() {
 							fileDlg := new(walk.FileDialog)
@@ -160,17 +160,17 @@ func (mw *jenkinsMainWindow) openSettings() {
 							dlg.browserBox.SetText(fileDlg.FilePath)
 						},
 					},
-					Label{Text: "Interval (in seconds):"},
-					LineEdit{
+					declarative.Label{Text: "Interval (in seconds):"},
+					declarative.LineEdit{
 						AssignTo: &dlg.intervalBox,
 						Text:     strconv.Itoa(interval),
 						OnTextChanged: func() {
 							settings.Put("Interval", dlg.intervalBox.Text())
 						},
 					},
-					HSpacer{},
-					Label{Text: "Notify after successive successful builds:"},
-					CheckBox{
+					declarative.HSpacer{},
+					declarative.Label{Text: "Notify after successive successful builds:"},
+					declarative.CheckBox{
 						AssignTo:   &dlg.ssBox,
 						Checked:    ssBuilds,
 						ColumnSpan: 2,
@@ -178,25 +178,25 @@ func (mw *jenkinsMainWindow) openSettings() {
 							settings.Put("Successive_successful", strconv.FormatBool(dlg.ssBox.Checked()))
 						},
 					},
-					VSeparator{ColumnSpan: 3},
+					declarative.VSeparator{ColumnSpan: 3},
 				},
 			},
-			Composite{
-				Layout: Grid{Columns: 3},
-				Children: []Widget{
-					Label{
+			declarative.Composite{
+				Layout: declarative.Grid{Columns: 3},
+				Children: []declarative.Widget{
+					declarative.Label{
 						Row:       1,
 						Column:    1,
-						Alignment: AlignHCenterVCenter,
+						Alignment: declarative.AlignHCenterVCenter,
 						Text:      "All Jenkins Jobs",
 					},
-					Composite{
+					declarative.Composite{
 						Row:    2,
 						Column: 1,
-						Layout: HBox{},
-						Children: []Widget{
-							Label{Text: "Filter:"},
-							LineEdit{
+						Layout: declarative.HBox{},
+						Children: []declarative.Widget{
+							declarative.Label{Text: "Filter:"},
+							declarative.LineEdit{
 								AssignTo: &dlg.remoteFilter,
 								OnTextChanged: func() {
 									remote.items = substractAndFilterArray(
@@ -206,21 +206,21 @@ func (mw *jenkinsMainWindow) openSettings() {
 									remote.PublishItemsReset()
 								},
 							},
-							PushButton{
+							declarative.PushButton{
 								Text:        "x",
 								ToolTipText: "Empty filter box",
-								MaxSize:     Size{Width: 20, Height: 10},
+								MaxSize:     declarative.Size{Width: 20, Height: 10},
 								OnClicked: func() {
 									dlg.remoteFilter.SetText("")
 								},
 							},
 						},
 					},
-					ListBox{
+					declarative.ListBox{
 						AssignTo:       &dlg.remoteLb,
 						Row:            3,
 						Column:         1,
-						MinSize:        Size{Width: 400, Height: 400},
+						MinSize:        declarative.Size{Width: 400, Height: 400},
 						Model:          remote,
 						MultiSelection: true,
 						OnItemActivated: func() {
@@ -246,15 +246,15 @@ func (mw *jenkinsMainWindow) openSettings() {
 							saveJobs(dlg.ownItems)
 						},
 					},
-					Composite{
+					declarative.Composite{
 						Row:     3,
 						Column:  2,
-						Layout:  VBox{},
-						MinSize: Size{Width: 40, Height: 40},
-						MaxSize: Size{Width: 40, Height: 40},
-						Children: []Widget{
-							VSpacer{},
-							PushButton{
+						Layout:  declarative.VBox{},
+						MinSize: declarative.Size{Width: 40, Height: 40},
+						MaxSize: declarative.Size{Width: 40, Height: 40},
+						Children: []declarative.Widget{
+							declarative.VSpacer{},
+							declarative.PushButton{
 								Text: "▶",
 								ToolTipText: "Add selected items from the left list (all jenkins" +
 									" jobs) to the right (monitored jobs)",
@@ -285,12 +285,10 @@ func (mw *jenkinsMainWindow) openSettings() {
 									saveJobs(dlg.ownItems)
 								},
 							},
-							PushButton{
+							declarative.PushButton{
 								Text:        "◀",
 								ToolTipText: "Remove selected items from the right list (monitored jobs)",
 								OnClicked: func() {
-									items := []*job{}
-									lastIdx := 0
 									for _, idx := range dlg.ownLb.SelectedIndexes() {
 										var ownIdx int
 										for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
@@ -300,10 +298,7 @@ func (mw *jenkinsMainWindow) openSettings() {
 											}
 										}
 										dlg.ownItems = append(dlg.ownItems[:ownIdx], dlg.ownItems[ownIdx+1:]...)
-										items = append(items, own.items[lastIdx:idx]...)
-										lastIdx = idx + 1
 									}
-									items = append(items, own.items[lastIdx:]...)
 									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
 									remote.items = substractAndFilterArray(
@@ -314,50 +309,47 @@ func (mw *jenkinsMainWindow) openSettings() {
 									saveJobs(dlg.ownItems)
 								},
 							},
-							VSpacer{},
+							declarative.VSpacer{},
 						},
 					},
-					Label{
+					declarative.Label{
 						Row:       1,
 						Column:    3,
-						Alignment: AlignHCenterVCenter,
+						Alignment: declarative.AlignHCenterVCenter,
 						Text:      "Monitored Jobs",
 					},
-					Composite{
+					declarative.Composite{
 						Row:    2,
 						Column: 3,
-						Layout: HBox{},
-						Children: []Widget{
-							Label{Text: "Filter:"},
-							LineEdit{
+						Layout: declarative.HBox{},
+						Children: []declarative.Widget{
+							declarative.Label{Text: "Filter:"},
+							declarative.LineEdit{
 								AssignTo: &dlg.ownFilter,
 								OnTextChanged: func() {
 									own.items = substractAndFilterArray(dlg.ownItems, []*job{}, dlg.ownFilter.Text())
 									own.PublishItemsReset()
 								},
 							},
-							PushButton{
+							declarative.PushButton{
 								Text:        "x",
 								ToolTipText: "Empty filter box",
-								MaxSize:     Size{Width: 20, Height: 10},
+								MaxSize:     declarative.Size{Width: 20, Height: 10},
 								OnClicked: func() {
 									dlg.ownFilter.SetText("")
 								},
 							},
 						},
 					},
-					ListBox{
+					declarative.ListBox{
 						AssignTo:       &dlg.ownLb,
 						Row:            3,
 						Column:         3,
-						MinSize:        Size{Width: 400, Height: 400},
+						MinSize:        declarative.Size{Width: 400, Height: 400},
 						Model:          own,
 						MultiSelection: true,
 						OnItemActivated: func() {
-							items := []*job{}
 							idx := dlg.ownLb.CurrentIndex()
-							items = append(items, own.items[:idx]...)
-							items = append(items, own.items[idx+1:]...)
 							var ownIdx int
 							for ownIdx = 0; ownIdx < len(dlg.ownItems); ownIdx++ {
 								if dlg.ownItems[ownIdx].Name == own.items[idx].Name &&
@@ -375,19 +367,19 @@ func (mw *jenkinsMainWindow) openSettings() {
 					},
 				},
 			},
-			VSeparator{},
-			Composite{
-				Layout: HBox{},
-				Children: []Widget{
-					HSpacer{},
-					PushButton{
+			declarative.VSeparator{},
+			declarative.Composite{
+				Layout: declarative.HBox{},
+				Children: []declarative.Widget{
+					declarative.HSpacer{},
+					declarative.PushButton{
 						AssignTo: &dlg.okPB,
 						Text:     "Ok",
 						OnClicked: func() {
 							dlg.Close(walk.DlgCmdOK)
 						},
 					},
-					PushButton{
+					declarative.PushButton{
 						AssignTo: &dlg.cancelPB,
 						Text:     "Cancel",
 						OnClicked: func() {
@@ -398,7 +390,6 @@ func (mw *jenkinsMainWindow) openSettings() {
 			},
 		},
 	}.Create(mw)
-
 	if err != nil {
 		log.Println(err)
 	}
