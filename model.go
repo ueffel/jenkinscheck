@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -51,9 +52,23 @@ func (b *build) UnmarshalJSON(s []byte) error {
 }
 
 func getJobsFromMultiple(urls []string) jobs {
-	var jobs jobs
+	result := make(chan jobs, 2)
+	var wg sync.WaitGroup
 	for _, url := range urls {
-		j := getJobs(url)
+		wg.Add(1)
+		go func(innerUrl string, innerResult chan<- jobs) {
+			defer wg.Done()
+			j := getJobs(innerUrl)
+			innerResult <- j
+		}(url, result)
+	}
+	go func() {
+		wg.Wait()
+		close(result)
+	}()
+
+	var jobs jobs
+	for j := range result {
 		jobs.Jobs = append(jobs.Jobs, j.Jobs...)
 	}
 	return jobs
