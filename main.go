@@ -11,15 +11,51 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/lxn/walk"
 	"github.com/lxn/walk/declarative"
 	"github.com/lxn/win"
 )
+
+var (
+	buildTime string
+	version   string    = "(devel)"
+	startTime time.Time = time.Now()
+)
+
+func memStats(w io.Writer) {
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	var sinceLastGC string
+	if mem.NumGC > 0 {
+		sinceLastGC = fmt.Sprint(time.Duration(time.Now().UnixNano() - int64(mem.LastGC)))
+	} else {
+		sinceLastGC = "-"
+	}
+
+	fmt.Fprintln(w, "JenkinsCheck", version)
+	fmt.Fprint(w, "(compiled with ", runtime.Version(), " for ", runtime.GOOS, "/", runtime.GOARCH)
+	if buildTime != "" {
+		fmt.Fprintln(w)
+		fmt.Fprint(w, " at ", buildTime)
+	}
+	fmt.Fprintln(w, ")")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "Time since start:		%s\n", humanize.Time(startTime))
+	fmt.Fprintf(w, "			%s\n", startTime.Format(time.RFC822))
+	fmt.Fprintln(w, "Current Memory Usage:	", humanize.Bytes(mem.Alloc))
+	fmt.Fprintln(w, "Number of Goroutines:	", runtime.NumGoroutine())
+	fmt.Fprintln(w, "Since Last GC:		", sinceLastGC)
+	fmt.Fprintln(w, "Next GC:			", humanize.Bytes(mem.NextGC))
+	fmt.Fprintln(w, "GC Times:		", mem.NumGC)
+	fmt.Fprintln(w, "Total GC Pause:		", time.Duration(mem.PauseTotalNs))
+}
 
 func handlePanic() {
 	if r := recover(); r != nil {
@@ -103,6 +139,19 @@ func main() {
 					declarative.Action{
 						Text:        "E&xit",
 						OnTriggered: doExit,
+					},
+				},
+			},
+			declarative.Menu{
+				Text: "&Help",
+				Items: []declarative.MenuItem{
+					declarative.Action{
+						Text: "About",
+						OnTriggered: func() {
+							builder := strings.Builder{}
+							memStats(&builder)
+							walk.MsgBox(mainWindow, "About JenkinsCheck", builder.String(), walk.MsgBoxIconInformation|walk.MsgBoxOK)
+						},
 					},
 				},
 			},
